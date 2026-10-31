@@ -14,6 +14,9 @@ if (location.protocol === "file:") {
 const state = {
   token: localStorage.getItem("token"),
   qrUrl: null,
+  items: [],
+  filter: "all",
+  query: "",
 };
 
 const esc = (s) =>
@@ -25,6 +28,16 @@ function logout() {
   localStorage.removeItem("token");
   state.token = null;
   go("/login");
+}
+
+function notify(message, type = "success") {
+  const existing = document.querySelector(".toast");
+  existing?.remove();
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  document.body.append(toast);
+  setTimeout(() => toast.remove(), 3200);
 }
 
 async function api(path, { method = "GET", body, form, blob } = {}) {
@@ -112,11 +125,61 @@ function itemRow(it) {
     </article>`;
 }
 
+function filteredItems() {
+  const query = state.query.trim().toLowerCase();
+  return state.items.filter((item) => {
+    const matchesType = state.filter === "all" || item.type === state.filter;
+    const searchable = `${item.title} ${item.text_value || ""} ${item.url_value || ""} ${item.original_name || ""}`.toLowerCase();
+    return matchesType && (!query || searchable.includes(query));
+  });
+}
+
+function renderDashboardItems() {
+  const container = document.querySelector(".items");
+  if (!container) return;
+  const items = filteredItems();
+  container.innerHTML = items.length
+    ? items.map(itemRow).join("")
+    : `<div class="empty-state"><strong>No matching content</strong><p>Try a different search or filter.</p></div>`;
+  bindItemActions();
+}
+
+function bindItemActions() {
+  const err = document.getElementById("err");
+  document.querySelectorAll(".item").forEach((el) => {
+    const id = el.dataset.id;
+    el.addEventListener("click", async (e) => {
+      const act = e.target.dataset.act;
+      if (act === "delete") {
+        if (!confirm("Delete this content? Customers will no longer see it.")) return;
+        try {
+          await api(`/content/${id}`, { method: "DELETE" });
+          notify("Content deleted");
+          dashboardView();
+        } catch (ex) { err.textContent = ex.message; }
+      }
+      if (act === "replace") el.querySelector("[data-file]").click();
+    });
+    const input = el.querySelector("[data-file]");
+    if (input) input.addEventListener("change", async () => {
+      if (!input.files.length) return;
+      const form = new FormData();
+      form.append("file", input.files[0]);
+      try {
+        await api(`/content/${id}/file`, { method: "PUT", form });
+        notify("File replaced");
+        dashboardView();
+      } catch (ex) { err.textContent = ex.message; }
+    });
+  });
+}
+
 async function dashboardView() {
   root.innerHTML = `<main class="shell"><p>Loading…</p></main>`;
   let biz, items;
   try { [biz, items] = await Promise.all([api("/business/me"), api("/content")]); }
   catch (ex) { return; }
+  state.items = items;
 
   root.innerHTML = `
     <header class="topbar">
@@ -137,13 +200,33 @@ async function dashboardView() {
         <p class="hint">This code never changes. Print it once.</p>
       </aside>
       <section>
-        <div class="list-head"><h2>Page content</h2><a class="btn primary" href="#/editor/new">Add content</a></div>
+        <div class="list-head"><div><h2>Page content</h2><p class="muted" id="content-summary"></p></div><a class="btn primary" href="#/editor/new">Add content</a></div>
+        <div class="toolbar">
+          <label class="search"><span class="sr-only">Search content</span><input id="content-search" type="search" placeholder="Search title, text or file…" autocomplete="off"></label>
+          <select id="content-filter" aria-label="Filter content">
+            <option value="all">All types</option><option value="text">Text</option><option value="link">Links</option><option value="image">Images</option><option value="pdf">PDFs</option>
+          </select>
+        </div>
         <p class="error" id="err"></p>
-        <div class="items">${items.length ? items.map(itemRow).join("") : `<div class="empty-state">No content yet. Add a menu, an offer or a link to show on your page.</div>`}</div>
+        <div class="items"></div>
       </section>
     </div>`;
 
   document.getElementById("logout").onclick = logout;
+  state.filter = "all";
+  state.query = "";
+  const search = document.getElementById("content-search");
+  const filter = document.getElementById("content-filter");
+  const summary = document.getElementById("content-summary");
+  const updateItems = () => {
+    state.query = search.value;
+    state.filter = filter.value;
+    summary.textContent = `${filteredItems().length} of ${state.items.length} published item${state.items.length === 1 ? "" : "s"}`;
+    renderDashboardItems();
+  };
+  search.addEventListener("input", updateItems);
+  filter.addEventListener("change", updateItems);
+  updateItems();
 
   // QR image needs the auth header, so fetch it as a blob.
   try {
@@ -156,30 +239,9 @@ async function dashboardView() {
       a.href = state.qrUrl;
       a.download = `qr-${biz.slug}.png`;
       a.click();
+      notify("QR code download started");
     };
   } catch (_) {}
-
-  const err = document.getElementById("err");
-  root.querySelectorAll(".item").forEach((el) => {
-    const id = el.dataset.id;
-    el.addEventListener("click", async (e) => {
-      const act = e.target.dataset.act;
-      if (act === "delete") {
-        if (!confirm("Delete this content? Customers will no longer see it.")) return;
-        try { await api(`/content/${id}`, { method: "DELETE" }); dashboardView(); }
-        catch (ex) { err.textContent = ex.message; }
-      }
-      if (act === "replace") el.querySelector("[data-file]").click();
-    });
-    const input = el.querySelector("[data-file]");
-    if (input) input.addEventListener("change", async () => {
-      if (!input.files.length) return;
-      const form = new FormData();
-      form.append("file", input.files[0]);
-      try { await api(`/content/${id}/file`, { method: "PUT", form }); dashboardView(); }
-      catch (ex) { err.textContent = ex.message; }
-    });
-  });
 }
 
 /* ---------------- Content editor ---------------- */
@@ -244,6 +306,7 @@ async function editorView(id) {
     if ((t === "image" || t === "pdf") && fileEl.files.length) form.append("file", fileEl.files[0]);
     try {
       await api(isNew ? "/content" : `/content/${id}`, { method: isNew ? "POST" : "PUT", form });
+      notify(isNew ? "Content published" : "Changes saved");
       go("/dashboard");
     } catch (ex) { err.textContent = ex.message; }
   });
