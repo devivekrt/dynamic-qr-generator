@@ -21,6 +21,10 @@ app.include_router(business.router)
 app.include_router(content.router)
 app.include_router(public.router)
 
+@app.get("/api/health", tags=["system"])
+def health():
+    return {"status": "ok", "service": "dynamic-qr-generator"}
+
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 # Mounted last: serves client/index.html, styles.css, app.js, assets/
 app.mount("/", StaticFiles(directory=CLIENT_DIR, html=True), name="client")

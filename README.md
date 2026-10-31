@@ -16,6 +16,15 @@ uvicorn main:app --reload
 ```
 Open http://127.0.0.1:8000, create an account, add content, download the QR code.
 
+## Test locally
+```bash
+cd functions/api
+pytest -q
+```
+
+The health endpoint is available at `GET /api/health` and returns a small JSON
+response suitable for deployment checks.
+
 ## Settings (environment variables)
 | Name | Purpose | Default |
 |---|---|---|
