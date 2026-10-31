@@ -1,7 +1,7 @@
 import os
 
 os.environ["DB_PATH"] = "/tmp/dynamic-qr-generator-test.db"
-os.environ["SECRET_KEY"] = "test-secret"
+os.environ["SECRET_KEY"] = "test-secret-012345678901234567890123"
 
 from fastapi.testclient import TestClient
 

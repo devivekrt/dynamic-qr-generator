@@ -50,10 +50,13 @@ Set these AppSail environment variables before using a production QR code:
 ```text
 SECRET_KEY=<long-random-secret>
 BASE_URL=https://<your-appsail-domain>
+ENVIRONMENT=production
 ```
 
 SQLite and local uploads are suitable for a test deployment. For production,
-use persistent storage or a managed database and object storage.
+use a managed database and object storage; local AppSail disk is not a durable
+storage layer. Production startup fails unless `SECRET_KEY` is at least 32
+characters and `BASE_URL` uses HTTPS.
 
 ## Settings (environment variables)
 | Name | Purpose | Default |

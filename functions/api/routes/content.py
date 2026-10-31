@@ -16,6 +16,7 @@ ALLOWED_EXT = {
     "image": {".png", ".jpg", ".jpeg", ".webp", ".gif"},
     "pdf": {".pdf"},
 }
+IMAGE_SIGNATURES = (b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"RIFF")
 
 
 def now() -> str:
@@ -51,9 +52,19 @@ def save_upload(file: UploadFile, ctype: str):
     if ext not in ALLOWED_EXT.get(ctype, set()):
         allowed = ", ".join(sorted(ALLOWED_EXT[ctype]))
         raise HTTPException(422, f"This content type accepts only: {allowed}")
+    expected_types = {
+        "image": {"image/png", "image/jpeg", "image/webp", "image/gif"},
+        "pdf": {"application/pdf"},
+    }
+    if file.content_type and file.content_type not in expected_types[ctype]:
+        raise HTTPException(422, "The uploaded file type does not match the selected content type")
     data = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, f"File is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
+    if ctype == "pdf" and not data.startswith(b"%PDF-"):
+        raise HTTPException(422, "The uploaded file is not a valid PDF")
+    if ctype == "image" and not data.startswith(IMAGE_SIGNATURES):
+        raise HTTPException(422, "The uploaded file is not a supported image")
     stored = f"{uuid.uuid4().hex}{ext}"
     with open(os.path.join(UPLOAD_DIR, stored), "wb") as fh:
         fh.write(data)
