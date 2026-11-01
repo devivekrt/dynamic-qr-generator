@@ -36,7 +36,9 @@ def all_rows(request: Request, name: str) -> list[dict]:
     token = None
     while True:
         result = service.get_paged_rows(token, max_rows=100)
-        rows.extend(result.get("rows", []))
+        # Catalyst SDK responses use `data`; keep `rows` for compatibility
+        # with older SDK response shapes.
+        rows.extend(result.get("data", result.get("rows", [])))
         if not result.get("more_records"):
             return rows
         token = result.get("next_token")
