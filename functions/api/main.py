@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import os
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -24,3 +25,13 @@ app.include_router(public.router)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 # Mounted last: serves client/index.html, styles.css, app.js, assets/
 app.mount("/", StaticFiles(directory=CLIENT_DIR, html=True), name="client")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.getenv("X_ZOHO_CATALYST_LISTEN_PORT", os.getenv("PORT", "8000"))),
+    )

@@ -28,6 +28,41 @@ Open http://127.0.0.1:8000, create an account, add content, download the QR code
 
 Set `BASE_URL` before printing a QR code. The code contains this address.
 
+## Deploy to Zoho Catalyst AppSail
+
+This FastAPI app is deployed as a Catalyst-managed AppSail Python service.
+From the repository root, install and authenticate the Catalyst CLI, then
+initialize the project:
+
+```bash
+npm install -g zcatalyst-cli
+catalyst auth:login
+catalyst init
+```
+
+Choose the existing Catalyst project (or create one), select **AppSail**,
+choose the **Catalyst-managed runtime**, and select **Python**. Set the
+AppSail source directory to `functions/api`, then deploy:
+
+```bash
+catalyst deploy appsail
+```
+
+Configure these production environment variables in the Catalyst AppSail
+settings before going live:
+
+| Name | Required value |
+|---|---|
+| `SECRET_KEY` | Long random secret, at least 32 characters |
+| `BASE_URL` | The public AppSail URL or your custom domain |
+| `DB_PATH` | A persistent path if SQLite storage is used |
+| `UPLOAD_DIR` | A persistent path for uploaded images/PDFs |
+
+SQLite and local uploads must use persistent storage in production. If the
+AppSail runtime does not provide persistent paths for these files, move the
+database and uploads to a managed database and object storage before launch;
+otherwise a restart can lose accounts or uploaded content.
+
 ## Docs
 - `docs/architecture.md`
 - `docs/api-documentation.md`
