@@ -44,4 +44,4 @@ Each QR has exactly one current destination. Enforce uniqueness on
 | `updated_at` | Date-Time | Yes | |
 
 Create one Catalyst File Store folder and set its ID as
-`CATALYST_FILESTORE_FOLDER_ID`.
+`FILESTORE_FOLDER_ID`.

@@ -22,10 +22,10 @@ Open http://127.0.0.1:8000, create an account, add content, download the QR code
 |---|---|---|
 | `SECRET_KEY` | Signs login tokens. Set a long random value | dev value |
 | `BASE_URL` | Public address put in the QR code, e.g. `https://menu.example.com` | request host |
-| `CATALYST_BUSINESSES_TABLE` | Businesses Data Store table | `Businesses` |
-| `CATALYST_QR_CODES_TABLE` | QR codes Data Store table | `QrCodes` |
-| `CATALYST_CONTENTS_TABLE` | Content Data Store table | `Contents` |
-| `CATALYST_FILESTORE_FOLDER_ID` | File Store folder for uploads | required |
+| `APP_BUSINESSES_TABLE` | Businesses Data Store table | `Businesses` |
+| `APP_QR_CODES_TABLE` | QR codes Data Store table | `QrCodes` |
+| `APP_CONTENTS_TABLE` | Content Data Store table | `Contents` |
+| `FILESTORE_FOLDER_ID` | File Store folder for uploads | required |
 | `MAX_UPLOAD_MB` | Upload limit | `10` |
 
 Set `BASE_URL` before printing a QR code. The code contains this address.
@@ -57,10 +57,10 @@ settings before going live:
 |---|---|
 | `SECRET_KEY` | Long random secret, at least 32 characters |
 | `BASE_URL` | The public AppSail URL or your custom domain |
-| `CATALYST_BUSINESSES_TABLE` | `Businesses` unless renamed |
-| `CATALYST_QR_CODES_TABLE` | `QrCodes` unless renamed |
-| `CATALYST_CONTENTS_TABLE` | `Contents` unless renamed |
-| `CATALYST_FILESTORE_FOLDER_ID` | ID of the Catalyst File Store folder |
+| `APP_BUSINESSES_TABLE` | `Businesses` unless renamed |
+| `APP_QR_CODES_TABLE` | `QrCodes` unless renamed |
+| `APP_CONTENTS_TABLE` | `Contents` unless renamed |
+| `FILESTORE_FOLDER_ID` | ID of the Catalyst File Store folder |
 
 Create the three Data Store tables and File Store folder before deployment.
 No SQLite database or local upload directory is used.

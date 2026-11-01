@@ -7,10 +7,10 @@ import zcatalyst_sdk
 
 from fastapi import HTTPException, Request
 
-BUSINESSES = os.getenv("CATALYST_BUSINESSES_TABLE", "Businesses")
-QR_CODES = os.getenv("CATALYST_QR_CODES_TABLE", "QrCodes")
-CONTENTS = os.getenv("CATALYST_CONTENTS_TABLE", "Contents")
-FOLDER_ID = os.getenv("CATALYST_FILESTORE_FOLDER_ID", "")
+BUSINESSES = os.getenv("APP_BUSINESSES_TABLE", "Businesses")
+QR_CODES = os.getenv("APP_QR_CODES_TABLE", "QrCodes")
+CONTENTS = os.getenv("APP_CONTENTS_TABLE", "Contents")
+FOLDER_ID = os.getenv("FILESTORE_FOLDER_ID", "")
 
 
 def app_for(request: Request):
@@ -77,7 +77,7 @@ def get_owned_content(request: Request, content_id: str, business_id: str) -> di
 
 def upload_file(request: Request, filename: str, data: bytes) -> str:
     if not FOLDER_ID:
-        raise RuntimeError("CATALYST_FILESTORE_FOLDER_ID is not configured")
+        raise RuntimeError("FILESTORE_FOLDER_ID is not configured")
     folder = app_for(request).filestore().folder(FOLDER_ID)
     stream = io.BytesIO(data)
     stream.name = filename
