@@ -72,13 +72,12 @@ function authView(mode) {
 function itemRow(it) {
   const thumb = it.type === "image" && it.file_url ? `<img class="thumb" src="${esc(it.file_url)}" alt="">` :
     `<div class="thumb">${TYPE_LABEL[it.type]}</div>`;
-  const detail = it.type === "link" ? it.url_value : it.type === "text" ? it.text_value : it.original_name;
-  const file = it.type === "image" || it.type === "pdf";
   return `<article class="item" data-id="${it.id}">${thumb}<div class="meta">
-    <span>${TYPE_LABEL[it.type]} · ${esc((detail || "").slice(0, 70))}</span></div><div class="ops">
-    <a class="btn small" href="#/editor/${it.id}">Update destination</a>
-    ${file ? `<button class="btn small" data-act="replace">Replace file</button><input type="file" class="hidden" data-file accept="${it.type === "pdf" ? ".pdf" : "image/*"}">` : ""}
-    <button class="btn small danger" data-act="delete">Delete</button></div></article>`;
+    <span>${TYPE_LABEL[it.type]}</span></div><div class="ops">
+    ${it.type === "text" ? `<a class="btn small" href="#/editor/${it.id}">Edit text</a>` : ""}
+    ${it.type === "link" ? `<a class="btn small" href="#/editor/${it.id}">Edit link</a>` : ""}
+    ${it.type === "image" || it.type === "pdf" ? `<button class="btn small" data-act="replace">Replace file</button><input type="file" class="hidden" data-file accept="${it.type === "pdf" ? ".pdf" : "image/*"}">` : ""}
+    </div></article>`;
 }
 
 async function dashboardView() {
@@ -126,10 +125,6 @@ async function dashboardView() {
       };
       card.querySelectorAll(".item").forEach((el) => {
         const id = el.dataset.id, input = el.querySelector("[data-file]");
-        el.querySelector("[data-act='delete']").onclick = async () => {
-          if (!confirm("Delete this content?")) return;
-          try { await api(`/content/${id}`, { method: "DELETE" }); dashboardView(); } catch (ex) { err.textContent = ex.message; }
-        };
         const replace = el.querySelector("[data-act='replace']");
         if (replace) { replace.onclick = () => input.click(); input.onchange = async () => {
           if (!input.files.length) return; const form = new FormData(); form.append("file", input.files[0]);
@@ -146,7 +141,7 @@ async function editorView(id) {
   let item = { type: "text", text_value: "", url_value: "" };
   if (!isNew) { try { item = await api(`/content/${id}`); } catch (_) { return go("/dashboard"); } }
   root.innerHTML = `<main class="shell wide"><form class="panel" id="editor"><h1>${isNew ? "Set destination" : "Update destination"}</h1>
-    <label for="type">Content type</label><select id="type" ${isNew ? "" : "disabled"}>${Object.entries(TYPE_LABEL).map(([v, l]) =>
+    <label for="type">Content type</label><select id="type">${Object.entries(TYPE_LABEL).map(([v, l]) =>
       `<option value="${v}" ${item.type === v ? "selected" : ""}>${l}</option>`).join("")}</select>
     <div id="f-text"><label for="text">Text</label><textarea id="text">${esc(item.text_value)}</textarea></div>
     <div id="f-link"><label for="url">Link address</label><input id="url" type="url" placeholder="https://" value="${esc(item.url_value)}"></div>
@@ -157,13 +152,14 @@ async function editorView(id) {
   const sync = () => { const t = typeEl.value;
     document.getElementById("f-text").classList.toggle("hidden", t !== "text"); document.getElementById("f-link").classList.toggle("hidden", t !== "link");
     document.getElementById("f-file").classList.toggle("hidden", t !== "image" && t !== "pdf"); fileEl.accept = t === "pdf" ? ".pdf" : "image/*";
-    document.getElementById("file-hint").textContent = isNew ? "Choose a file up to 10 MB." : `Current file: ${item.original_name || "none"}. Choose a new file to replace it.`;
+    document.getElementById("file-hint").textContent = "Choose a file up to 10 MB.";
   };
   typeEl.onchange = sync; sync();
   document.getElementById("editor").onsubmit = async (e) => {
     e.preventDefault(); const err = document.getElementById("err"); err.textContent = "";
     const t = typeEl.value, form = new FormData();
-    if (isNew) { form.append("type", t); form.append("qr_code_id", qrId); }
+    form.append("type", t);
+    if (isNew) form.append("qr_code_id", qrId);
     if (t === "text") form.append("text_value", document.getElementById("text").value);
     if (t === "link") form.append("url_value", document.getElementById("url").value);
     if ((t === "image" || t === "pdf") && fileEl.files.length) form.append("file", fileEl.files[0]);

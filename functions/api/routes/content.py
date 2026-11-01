@@ -87,22 +87,39 @@ async def create_content(
 @router.put("/{content_id}")
 async def update_content(
     content_id: str, request: Request,
+    type: str = Form(...),
     text_value: Optional[str] = Form(None), url_value: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None), biz=Depends(current_business),
 ):
     row = get_owned_content(request, content_id, str(biz.get("ROWID")))
+    if type not in TYPES:
+        raise HTTPException(422, "Choose a content type")
     values = dict(row)
-    if row["TYPE"] == "text":
+    old_file_id = row.get("FILE_ID")
+    values["TYPE"] = type
+    values["TEXT_VALUE"] = None
+    values["URL_VALUE"] = None
+    values["FILE_ID"] = None
+    values["FILE_NAME"] = None
+    if type == "text":
         values["TEXT_VALUE"] = (text_value or "").strip()
         if not values["TEXT_VALUE"]:
             raise HTTPException(422, "Enter the text to show")
-    elif row["TYPE"] == "link":
+    elif type == "link":
         values["URL_VALUE"] = clean_url(url_value)
-    elif file is not None and file.filename:
-        new_id, original = await upload_value(request, file, row["TYPE"])
-        values["FILE_ID"], values["FILE_NAME"] = new_id, original
+    else:
+        if file is None or not file.filename:
+            if row["TYPE"] == type and old_file_id:
+                values["FILE_ID"] = old_file_id
+                values["FILE_NAME"] = row.get("FILE_NAME")
+            else:
+                raise HTTPException(422, "Choose a file to upload")
+        else:
+            new_id, original = await upload_value(request, file, type)
+            values["FILE_ID"], values["FILE_NAME"] = new_id, original
     updated = update(request, CONTENTS, values)
-    remove_file(request, row.get("FILE_ID") if values.get("FILE_ID") != row.get("FILE_ID") else None)
+    if old_file_id and values.get("FILE_ID") != old_file_id:
+        remove_file(request, old_file_id)
     return serialize(updated)
 
 

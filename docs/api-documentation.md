@@ -26,7 +26,7 @@ Each QR code has one content record.
 | GET | `/api/content?qr_code_id={id}` | |
 | GET | `/api/content/{id}` | |
 | POST | `/api/content` | `qr_code_id`, `type`, destination value/file |
-| PUT | `/api/content/{id}` | Updated destination value/file |
+| PUT | `/api/content/{id}` | `type` and updated destination value/file |
 | PUT | `/api/content/{id}/file` | Replacement image/PDF |
 | DELETE | `/api/content/{id}` | |
 
