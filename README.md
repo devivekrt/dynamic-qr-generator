@@ -1,79 +1,47 @@
-# Dynamic QR Code Generator for Businesses
+# Dynamic QR Code Generator
 
-A business can create multiple permanent QR codes. Customers scan a code and
-open its destination directly. The owner can change that code's text, offers, images,
-PDFs and links at any time without reprinting it. Each QR code has one destination, such as a link or
-menu image, and its stable URL always serves the latest destination.
+**Use the live site:** [Open QR Code Generator](https://appsail-50047107962.development.catalystappsail.in)
 
-Backend: Python (FastAPI + Catalyst Data Store/File Store). Frontend: static HTML, CSS and a small
-`app.js` (browsers cannot run Python, so the client script stays JavaScript).
+A business can create multiple permanent QR codes. Customers scan a QR code
+and open its current destination directly. The owner can update text, links,
+images, or PDFs without printing a new QR code.
 
-## Run locally
+The application is hosted with [Zoho Catalyst](https://www.zoho.com/catalyst/).
+
+## How to use
+
+1. Open the [live site](https://appsail-50047107962.development.catalystappsail.in).
+2. Create an account and log in.
+3. Create a QR code, then choose **Set destination**.
+4. Choose a link, text, image, or PDF and save it.
+5. Download and print the QR code.
+6. Later, use **Update destination**, **Edit text**, **Edit link**, or
+   **Replace file**. The printed QR code continues to work.
+
+## QR code behavior
+
+- Each QR code has one permanent destination.
+- Link QR codes open the current link.
+- Text QR codes display the current text.
+- Image and PDF QR codes open the current file.
+- Updating the destination does not change the QR code.
+
+## Developer information
+
+The backend uses Python, FastAPI, Catalyst Data Store, and Catalyst File Store.
+Local development instructions are provided for contributors.
+
+### Run locally
+
 ```bash
 cd functions/api
-python3.12 -m venv .venv && source .venv/bin/activate   # Windows: py -3.12 -m venv .venv
+python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
-Use Python 3.12 or 3.13. Python 3.15 does not currently have compatible
-`pydantic-core` wheels.
-Open http://127.0.0.1:8000 to verify the app starts locally. Account and
-storage operations require Catalyst AppSail because this project does not use
-SQLite locally.
 
-## Settings (environment variables)
-| Name | Purpose | Default |
-|---|---|---|
-| `SECRET_KEY` | Signs login tokens. Set a long random value | dev value |
-| `BASE_URL` | Public address put in the QR code, e.g. `https://menu.example.com` | request host |
-| `APP_BUSINESSES_TABLE` | Businesses Data Store table | `Businesses` |
-| `APP_QR_CODES_TABLE` | QR codes Data Store table | `QrCodes` |
-| `APP_CONTENTS_TABLE` | Content Data Store table | `Contents` |
-| `FILESTORE_FOLDER_ID` | File Store folder for uploads | required |
-| `MAX_UPLOAD_MB` | Upload limit | `10` |
+## Documentation
 
-Set `BASE_URL` before printing a QR code. The code contains this address.
-
-## Deploy to Zoho Catalyst AppSail
-
-This FastAPI app is deployed as a Catalyst-managed AppSail Python service.
-From the repository root, install and authenticate the Catalyst CLI, then
-initialize the project:
-
-```bash
-npm install -g zcatalyst-cli
-catalyst auth:login
-catalyst init
-```
-
-Choose the existing Catalyst project (or create one), select **AppSail**,
-choose the **Catalyst-managed runtime**, and select **Python**. Set the
-AppSail source directory to `functions/api`. The service directory must
-contain `main.py`, `requirements.txt`, and `app-config.json`; the root
-`requirements.txt` is also included as a Catalyst build fallback. The
-`app-config.json` starts the service with `python3 main.py`; it binds to
-Catalyst's `X_ZOHO_CATALYST_LISTEN_PORT`. Then deploy:
-
-```bash
-catalyst deploy appsail
-```
-
-Configure these production environment variables in the Catalyst AppSail
-settings before going live:
-
-| Name | Required value |
-|---|---|
-| `SECRET_KEY` | Long random secret, at least 32 characters |
-| `BASE_URL` | The public AppSail URL or your custom domain |
-| `APP_BUSINESSES_TABLE` | `Businesses` unless renamed |
-| `APP_QR_CODES_TABLE` | `QrCodes` unless renamed |
-| `APP_CONTENTS_TABLE` | `Contents` unless renamed |
-| `FILESTORE_FOLDER_ID` | ID of the Catalyst File Store folder |
-
-Create the three Data Store tables and File Store folder before deployment.
-No SQLite database or local upload directory is used.
-
-## Docs
-- `docs/architecture.md`
-- `docs/api-documentation.md`
-- `database/schema.md`
+- [Architecture](docs/architecture.md)
+- [API documentation](docs/api-documentation.md)
+- [Catalyst data schema](database/schema.md)
