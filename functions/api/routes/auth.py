@@ -28,7 +28,7 @@ def make_slug(request: Request, name: str) -> str:
     base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:30] or "business"
     while True:
         slug = f"{base}-{secrets.token_hex(2)}"
-        if not find_one(request, BUSINESSES, lambda r: r.get("slug") == slug):
+        if not find_one(request, BUSINESSES, lambda r: r.get("SLUG") == slug):
             return slug
 
 
@@ -36,7 +36,7 @@ def make_qr_slug(request: Request, name: str) -> str:
     base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:30] or "qr"
     while True:
         slug = f"{base}-{secrets.token_hex(3)}"
-        if not find_one(request, QR_CODES, lambda r: r.get("slug") == slug):
+        if not find_one(request, QR_CODES, lambda r: r.get("SLUG") == slug):
             return slug
 
 
@@ -45,25 +45,28 @@ def register(data: RegisterIn, request: Request):
     email = data.email.strip().lower()
     if not EMAIL_RE.match(email):
         raise HTTPException(422, "Enter a valid email address")
-    if find_one(request, BUSINESSES, lambda r: str(r.get("email", "")).lower() == email):
+    if find_one(request, BUSINESSES, lambda r: str(r.get("EMAIL", "")).lower() == email):
         raise HTTPException(409, "An account with this email already exists")
 
     name = data.business_name.strip()
     business = insert(request, BUSINESSES, {
-        "name": name, "email": email, "password_hash": hash_password(data.password),
-        "slug": make_slug(request, name), "created_at": now(),
+        "BUSINESS_NAME": name, "EMAIL": email, "PASSWORD_HASH": hash_password(data.password),
+        "SLUG": make_slug(request, name), "CREATED_AT": now(),
     })
     business_id = str(business.get("ROWID") or business.get("id"))
     insert(request, QR_CODES, {
-        "business_id": business_id, "name": "Main QR code",
-        "slug": make_qr_slug(request, name), "created_at": now(),
+        "BUSINESS_ID": business_id, "QR_NAME": "Main QR code",
+        "SLUG": make_qr_slug(request, name),
     })
     return {"token": create_token(business_id), "business_name": name}
 
 
 @router.post("/login")
 def login(data: LoginIn, request: Request):
-    row = find_one(request, BUSINESSES, lambda r: str(r.get("email", "")).lower() == data.email.strip().lower())
-    if row is None or not verify_password(data.password, row["password_hash"]):
+    row = find_one(request, BUSINESSES, lambda r: str(r.get("EMAIL", "")).lower() == data.email.strip().lower())
+    if row is None or not verify_password(data.password, row["PASSWORD_HASH"]):
         raise HTTPException(401, "Email or password is incorrect")
-    return {"token": create_token(str(row.get("ROWID") or row.get("id"))), "business_name": row["name"]}
+    return {
+        "token": create_token(str(row.get("ROWID") or row.get("id"))),
+        "business_name": row["BUSINESS_NAME"],
+    }

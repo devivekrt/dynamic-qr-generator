@@ -24,22 +24,32 @@ def unique_slug(request: Request, name: str) -> str:
     base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:30] or "qr"
     while True:
         slug = f"{base}-{secrets.token_hex(3)}"
-        if not find_one(request, QR_CODES, lambda r: r.get("slug") == slug):
+        if not find_one(request, QR_CODES, lambda r: r.get("SLUG") == slug):
             return slug
 
 
 @router.get("/me")
 def me(biz=Depends(current_business)):
-    return {"id": biz.get("ROWID"), "name": biz["name"], "email": biz["email"], "slug": biz["slug"]}
+    return {
+        "id": biz.get("ROWID"),
+        "name": biz["BUSINESS_NAME"],
+        "email": biz["EMAIL"],
+        "slug": biz["SLUG"],
+    }
 
 
 @router.get("/qr-codes")
 def list_qr_codes(request: Request, biz=Depends(current_business)):
-    rows = [r for r in all_rows(request, QR_CODES) if str(r.get("business_id")) == str(biz.get("ROWID"))]
+    rows = [r for r in all_rows(request, QR_CODES) if str(r.get("BUSINESS_ID")) == str(biz.get("ROWID"))]
     contents = all_rows(request, CONTENTS)
     return [
-        {**row, "content_count": int(any(str(c.get("qr_code_id")) == str(row.get("ROWID")) for c in contents)),
-         "public_url": public_url(request, row["slug"])}
+        {
+            "id": row.get("ROWID"),
+            "name": row["QR_NAME"],
+            "slug": row["SLUG"],
+            "content_count": int(any(str(c.get("QR_CODE_ID")) == str(row.get("ROWID")) for c in contents)),
+            "public_url": public_url(request, row["SLUG"]),
+        }
         for row in reversed(rows)
     ]
 
@@ -50,21 +60,27 @@ def create_qr_code(data: dict, request: Request, biz=Depends(current_business)):
     if not 1 <= len(name) <= 120:
         raise HTTPException(422, "Enter a QR code name")
     row = insert(request, QR_CODES, {
-        "business_id": str(biz.get("ROWID")), "name": name,
-        "slug": unique_slug(request, name), "created_at": datetime.now(timezone.utc).isoformat(),
+        "BUSINESS_ID": str(biz.get("ROWID")), "QR_NAME": name,
+        "SLUG": unique_slug(request, name),
     })
-    return {**row, "content_count": 0, "public_url": public_url(request, row["slug"])}
+    return {
+        "id": row.get("ROWID"),
+        "name": row["QR_NAME"],
+        "slug": row["SLUG"],
+        "content_count": 0,
+        "public_url": public_url(request, row["SLUG"]),
+    }
 
 
 @router.delete("/qr-codes/{qr_id}", status_code=204)
 def delete_qr_code(qr_id: str, request: Request, biz=Depends(current_business)):
     row = get_owned_qr(request, qr_id, str(biz.get("ROWID")))
-    qrs = [r for r in all_rows(request, QR_CODES) if str(r.get("business_id")) == str(biz.get("ROWID"))]
+    qrs = [r for r in all_rows(request, QR_CODES) if str(r.get("BUSINESS_ID")) == str(biz.get("ROWID"))]
     if len(qrs) <= 1:
         raise HTTPException(422, "Keep at least one QR code")
     for content in all_rows(request, CONTENTS):
-        if str(content.get("qr_code_id")) == qr_id:
-            remove_file(request, content.get("file_id"))
+        if str(content.get("QR_CODE_ID")) == qr_id:
+            remove_file(request, content.get("FILE_ID"))
             delete(request, CONTENTS, str(content["ROWID"]))
     delete(request, QR_CODES, str(row["ROWID"]))
 
@@ -72,8 +88,8 @@ def delete_qr_code(qr_id: str, request: Request, biz=Depends(current_business)):
 @router.get("/qr-codes/{qr_id}/image")
 def qr_code(qr_id: str, request: Request, download: bool = False, biz=Depends(current_business)):
     row = get_owned_qr(request, qr_id, str(biz.get("ROWID")))
-    img = qrcode.make(public_url(request, row["slug"]), error_correction=ERROR_CORRECT_Q, box_size=12, border=3)
+    img = qrcode.make(public_url(request, row["SLUG"]), error_correction=ERROR_CORRECT_Q, box_size=12, border=3)
     buf = BytesIO()
     img.save(buf, format="PNG")
-    headers = {"Content-Disposition": f'attachment; filename="qr-{row["slug"]}.png"'} if download else {}
+    headers = {"Content-Disposition": f'attachment; filename="qr-{row["SLUG"]}.png"'} if download else {}
     return Response(buf.getvalue(), media_type="image/png", headers=headers)

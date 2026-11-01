@@ -9,10 +9,10 @@ NO_CACHE = {"Cache-Control": "no-cache"}
 
 
 def load_content(request: Request, slug: str):
-    qr = find_one(request, "QrCodes", lambda r: r.get("slug") == slug)
+    qr = find_one(request, "QrCodes", lambda r: r.get("SLUG") == slug)
     if qr is None:
         raise HTTPException(404, "This QR code does not exist")
-    item = find_one(request, CONTENTS, lambda r: str(r.get("qr_code_id")) == row_id(qr))
+    item = find_one(request, CONTENTS, lambda r: str(r.get("QR_CODE_ID")) == row_id(qr))
     return qr, item
 
 
@@ -22,28 +22,28 @@ def public_content(slug: str, request: Request):
     _, item = load_content(request, slug)
     if item is None:
         raise HTTPException(404, "This QR code has no content yet")
-    if item["type"] == "link":
-        return RedirectResponse(item["url_value"], status_code=status.HTTP_307_TEMPORARY_REDIRECT, headers=NO_CACHE)
-    if item["type"] in {"image", "pdf"}:
-        media_type = "image/*" if item["type"] == "image" else "application/pdf"
-        return Response(download_file(request, item["file_id"]), media_type=media_type, headers=NO_CACHE)
-    return PlainTextResponse(item.get("text_value") or "", headers=NO_CACHE)
+    if item["TYPE"] == "link":
+        return RedirectResponse(item["URL_VALUE"], status_code=status.HTTP_307_TEMPORARY_REDIRECT, headers=NO_CACHE)
+    if item["TYPE"] in {"image", "pdf"}:
+        media_type = "image/*" if item["TYPE"] == "image" else "application/pdf"
+        return Response(download_file(request, item["FILE_ID"]), media_type=media_type, headers=NO_CACHE)
+    return PlainTextResponse(item.get("TEXT_VALUE") or "", headers=NO_CACHE)
 
 
 @router.get("/api/public/{slug}")
 def public_json(slug: str, request: Request):
     qr, item = load_content(request, slug)
-    return {"qr_name": qr["name"], "content": {
-        "id": row_id(item), "title": item["title"], "type": item["type"],
-        "text": item.get("text_value"), "url": item.get("url_value"),
-        "file_id": item.get("file_id"), "updated_at": item["updated_at"],
+    return {"qr_name": qr["QR_NAME"], "content": {
+        "id": row_id(item), "title": item["TITLE"], "type": item["TYPE"],
+        "text": item.get("TEXT_VALUE"), "url": item.get("URL_VALUE"),
+        "file_id": item.get("FILE_ID"),
     } if item else None}
 
 
 @router.get("/files/{file_id}")
 def public_file(file_id: str, request: Request):
-    item = find_one(request, CONTENTS, lambda r: str(r.get("file_id")) == file_id)
+    item = find_one(request, CONTENTS, lambda r: str(r.get("FILE_ID")) == file_id)
     if item is None:
         raise HTTPException(404, "File not found")
-    media_type = "image/*" if item["type"] == "image" else "application/pdf"
+    media_type = "image/*" if item["TYPE"] == "image" else "application/pdf"
     return Response(download_file(request, file_id), media_type=media_type, headers=NO_CACHE)

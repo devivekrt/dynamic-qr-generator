@@ -67,14 +67,18 @@ def delete(request: Request, name: str, identifier: str) -> None:
 
 
 def get_owned_qr(request: Request, qr_id: str, business_id: str) -> dict:
-    row = find_one(request, QR_CODES, lambda r: row_id(r) == qr_id and str(r.get("business_id")) == business_id)
+    row = find_one(request, QR_CODES, lambda r: row_id(r) == qr_id and str(r.get("BUSINESS_ID")) == business_id)
     if row is None:
         raise HTTPException(404, "QR code not found")
     return row
 
 
 def get_owned_content(request: Request, content_id: str, business_id: str) -> dict:
-    row = find_one(request, CONTENTS, lambda r: row_id(r) == content_id and str(r.get("business_id")) == business_id)
+    row = find_one(request, CONTENTS, lambda r: row_id(r) == content_id)
+    if row is not None:
+        qr = get_owned_qr(request, str(row.get("QR_CODE_ID")), business_id)
+        if row_id(qr) != str(row.get("QR_CODE_ID")):
+            row = None
     if row is None:
         raise HTTPException(404, "Content not found")
     return row
