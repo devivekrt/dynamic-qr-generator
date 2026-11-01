@@ -21,6 +21,8 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, stored: str) -> bool:
+    if not isinstance(stored, str):
+        return False
     try:
         salt_hex, digest_hex = stored.split("$")
         digest = hashlib.pbkdf2_hmac(

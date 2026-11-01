@@ -63,8 +63,9 @@ def register(data: RegisterIn, request: Request):
 
 @router.post("/login")
 def login(data: LoginIn, request: Request):
-    row = find_one(request, BUSINESSES, lambda r: str(r.get("EMAIL", "")).lower() == data.email.strip().lower())
-    if row is None or not verify_password(data.password, row["PASSWORD_HASH"]):
+    email = data.email.strip().lower()
+    row = find_one(request, BUSINESSES, lambda r: str(r.get("EMAIL", "")).strip().lower() == email)
+    if row is None or not verify_password(data.password, row.get("PASSWORD_HASH")):
         raise HTTPException(401, "Email or password is incorrect")
     return {
         "token": create_token(str(row.get("ROWID") or row.get("id"))),

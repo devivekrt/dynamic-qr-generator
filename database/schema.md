@@ -9,7 +9,7 @@ The backend uses the exact uppercase column names below.
 | `EMAIL` | text |
 | `CREATED_AT` | text |
 | `BUSINESS_NAME` | varchar |
-| `PASSWORD_HASH` | encrypted text |
+| `PASSWORD_HASH` | text (not encrypted; stores the PBKDF2 hash only) |
 | `SLUG` | varchar |
 
 Catalyst system columns such as `ROWID`, `CREATORID`, `CREATEDTIME`, and
