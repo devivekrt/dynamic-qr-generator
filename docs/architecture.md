@@ -4,7 +4,7 @@
 Customer phone ──scan QR──▶ GET /q/{slug}  ──▶ latest link redirect or current file
                                                      │
 Business owner ──▶ client (HTML/CSS/JS) ──▶ /api/*  ─┤──▶ SQLite (data.db)
-                                                     └──▶ uploads/ (images, PDFs)
+                                                     └──▶ Catalyst File Store (images, PDFs)
 ```
 
 ## Key idea
@@ -19,13 +19,13 @@ what customers receive without reprinting.
   app (hash routes: `#/login`, `#/register`, `#/dashboard`, `#/editor/:id`).
   It only calls the JSON API.
 - **functions/api/**: Python backend (FastAPI).
-  - `main.py` wires routers, `/uploads` and the client.
+  - `main.py` wires routers and the client.
   - `routes/auth.py` register and login (JWT).
   - `routes/business.py` profile, QR CRUD and QR PNG.
   - `routes/content.py` create, edit, replace file, delete.
   - `routes/public.py` direct QR destination responses (`/q/{slug}`).
   - `security.py` password hashing, tokens, auth dependency.
-  - `db.py`, `config.py` storage and settings.
+  - `catalyst_store.py`, `config.py` Catalyst storage and settings.
 - **database/**: schema reference.
 
 ## Security notes

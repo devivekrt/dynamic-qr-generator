@@ -2,10 +2,10 @@ import re
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from db import get_db
+from catalyst_store import BUSINESSES, QR_CODES, all_rows, find_one, insert, now
 from security import create_token, hash_password, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -24,55 +24,46 @@ class LoginIn(BaseModel):
     password: str
 
 
-def make_slug(db, name: str) -> str:
+def make_slug(request: Request, name: str) -> str:
     base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:30] or "business"
     while True:
         slug = f"{base}-{secrets.token_hex(2)}"
-        if db.execute("SELECT 1 FROM businesses WHERE slug = ?", (slug,)).fetchone() is None:
+        if not find_one(request, BUSINESSES, lambda r: r.get("slug") == slug):
             return slug
 
 
-def make_qr_slug(db, name: str) -> str:
+def make_qr_slug(request: Request, name: str) -> str:
     base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:30] or "qr"
     while True:
         slug = f"{base}-{secrets.token_hex(3)}"
-        if db.execute("SELECT 1 FROM qr_codes WHERE slug = ?", (slug,)).fetchone() is None:
+        if not find_one(request, QR_CODES, lambda r: r.get("slug") == slug):
             return slug
 
 
 @router.post("/register", status_code=201)
-def register(data: RegisterIn, db=Depends(get_db)):
+def register(data: RegisterIn, request: Request):
     email = data.email.strip().lower()
     if not EMAIL_RE.match(email):
         raise HTTPException(422, "Enter a valid email address")
-    if db.execute("SELECT 1 FROM businesses WHERE email = ?", (email,)).fetchone():
+    if find_one(request, BUSINESSES, lambda r: str(r.get("email", "")).lower() == email):
         raise HTTPException(409, "An account with this email already exists")
 
     name = data.business_name.strip()
-    cur = db.execute(
-        "INSERT INTO businesses (name, email, password_hash, slug, created_at) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (
-            name,
-            email,
-            hash_password(data.password),
-            make_slug(db, name),
-            datetime.now(timezone.utc).isoformat(),
-        ),
-    )
-    db.execute(
-        "INSERT INTO qr_codes (business_id, name, slug, created_at) VALUES (?, ?, ?, ?)",
-        (cur.lastrowid, "Main QR code", make_qr_slug(db, name), datetime.now(timezone.utc).isoformat()),
-    )
-    db.commit()
-    return {"token": create_token(cur.lastrowid), "business_name": name}
+    business = insert(request, BUSINESSES, {
+        "name": name, "email": email, "password_hash": hash_password(data.password),
+        "slug": make_slug(request, name), "created_at": now(),
+    })
+    business_id = str(business.get("ROWID") or business.get("id"))
+    insert(request, QR_CODES, {
+        "business_id": business_id, "name": "Main QR code",
+        "slug": make_qr_slug(request, name), "created_at": now(),
+    })
+    return {"token": create_token(business_id), "business_name": name}
 
 
 @router.post("/login")
-def login(data: LoginIn, db=Depends(get_db)):
-    row = db.execute(
-        "SELECT * FROM businesses WHERE email = ?", (data.email.strip().lower(),)
-    ).fetchone()
+def login(data: LoginIn, request: Request):
+    row = find_one(request, BUSINESSES, lambda r: str(r.get("email", "")).lower() == data.email.strip().lower())
     if row is None or not verify_password(data.password, row["password_hash"]):
         raise HTTPException(401, "Email or password is incorrect")
-    return {"token": create_token(row["id"]), "business_name": row["name"]}
+    return {"token": create_token(str(row.get("ROWID") or row.get("id"))), "business_name": row["name"]}

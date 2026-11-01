@@ -1,57 +1,49 @@
-from html import escape
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse
-
-from db import get_db
-from config import UPLOAD_DIR
+from catalyst_store import CONTENTS, download_file, find_one, row_id
+from fastapi import status
 
 router = APIRouter(tags=["public"])
 NO_CACHE = {"Cache-Control": "no-cache"}
 
 
-def load_content(db, slug: str):
-    biz = db.execute(
-        """SELECT b.id, b.name, q.name AS qr_name, q.slug
-           FROM qr_codes q JOIN businesses b ON b.id = q.business_id
-           WHERE q.slug = ?""",
-        (slug,),
-    ).fetchone()
-    if biz is None:
+def load_content(request: Request, slug: str):
+    qr = find_one(request, "QrCodes", lambda r: r.get("slug") == slug)
+    if qr is None:
         raise HTTPException(404, "This QR code does not exist")
-    item = db.execute(
-        "SELECT * FROM contents WHERE qr_code_id = (SELECT id FROM qr_codes WHERE slug = ?)",
-        (slug,),
-    ).fetchone()
-    return biz, item
+    item = find_one(request, CONTENTS, lambda r: str(r.get("qr_code_id")) == row_id(qr))
+    return qr, item
 
 
 @router.get("/q/{slug}")
 @router.get("/b/{slug}")
-def public_content(slug: str, db=Depends(get_db)):
-    _, item = load_content(db, slug)
+def public_content(slug: str, request: Request):
+    _, item = load_content(request, slug)
     if item is None:
         raise HTTPException(404, "This QR code has no content yet")
     if item["type"] == "link":
-        return RedirectResponse(item["url_value"], status_code=307, headers=NO_CACHE)
+        return RedirectResponse(item["url_value"], status_code=status.HTTP_307_TEMPORARY_REDIRECT, headers=NO_CACHE)
     if item["type"] in {"image", "pdf"}:
-        return FileResponse(
-            f"{UPLOAD_DIR}/{item['file_name']}",
-            media_type="image/*" if item["type"] == "image" else "application/pdf",
-            headers=NO_CACHE,
-        )
-    return PlainTextResponse(item["text_value"] or "", headers=NO_CACHE)
+        media_type = "image/*" if item["type"] == "image" else "application/pdf"
+        return Response(download_file(request, item["file_id"]), media_type=media_type, headers=NO_CACHE)
+    return PlainTextResponse(item.get("text_value") or "", headers=NO_CACHE)
 
 
 @router.get("/api/public/{slug}")
-def public_json(slug: str, db=Depends(get_db)):
-    biz, item = load_content(db, slug)
-    return {
-        "business_name": biz["name"],
-        "content": {
-            "id": item["id"], "title": item["title"], "type": item["type"],
-            "text": item["text_value"], "url": item["url_value"],
-            "file_url": f"/uploads/{item['file_name']}" if item["file_name"] else None,
-            "updated_at": item["updated_at"],
-        } if item else None,
-    }
+def public_json(slug: str, request: Request):
+    qr, item = load_content(request, slug)
+    return {"qr_name": qr["name"], "content": {
+        "id": row_id(item), "title": item["title"], "type": item["type"],
+        "text": item.get("text_value"), "url": item.get("url_value"),
+        "file_id": item.get("file_id"), "updated_at": item["updated_at"],
+    } if item else None}
+
+
+@router.get("/files/{file_id}")
+def public_file(file_id: str, request: Request):
+    item = find_one(request, CONTENTS, lambda r: str(r.get("file_id")) == file_id)
+    if item is None:
+        raise HTTPException(404, "File not found")
+    media_type = "image/*" if item["type"] == "image" else "application/pdf"
+    return Response(download_file(request, file_id), media_type=media_type, headers=NO_CACHE)
