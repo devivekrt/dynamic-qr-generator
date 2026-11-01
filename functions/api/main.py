@@ -18,8 +18,13 @@ app = FastAPI(title="Dynamic QR Code Generator", lifespan=lifespan)
 
 @app.middleware("http")
 async def catalyst_request_context(request, call_next):
-    import zcatalyst_sdk
-    request.state.catalyst = zcatalyst_sdk.initialize(req=request)
+    # Catalyst injects this port only in AppSail. Avoid initializing the SDK
+    # during ordinary local development, where Catalyst credentials are absent.
+    if os.getenv("X_ZOHO_CATALYST_LISTEN_PORT"):
+        import zcatalyst_sdk
+        request.state.catalyst = zcatalyst_sdk.initialize(req=request)
+    else:
+        request.state.catalyst = None
     return await call_next(request)
 
 app.include_router(auth.router)

@@ -17,7 +17,9 @@ uvicorn main:app --reload
 ```
 Use Python 3.12 or 3.13. Python 3.15 does not currently have compatible
 `pydantic-core` wheels.
-Open http://127.0.0.1:8000, create an account, add content, download the QR code.
+Open http://127.0.0.1:8000 to verify the app starts locally. Account and
+storage operations require Catalyst AppSail because this project does not use
+SQLite locally.
 
 ## Settings (environment variables)
 | Name | Purpose | Default |

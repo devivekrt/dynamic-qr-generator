@@ -16,6 +16,11 @@ FOLDER_ID = os.getenv("FILESTORE_FOLDER_ID", "")
 def app_for(request: Request):
     catalyst = getattr(request.state, "catalyst", None)
     if catalyst is None:
+        if not os.getenv("X_ZOHO_CATALYST_LISTEN_PORT"):
+            raise RuntimeError(
+                "Catalyst storage is available only in AppSail. "
+                "Deploy this service to Catalyst or provide valid Catalyst credentials."
+            )
         catalyst = zcatalyst_sdk.initialize(req=request)
         request.state.catalyst = catalyst
     return catalyst
