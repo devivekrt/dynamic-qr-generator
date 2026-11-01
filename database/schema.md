@@ -5,7 +5,7 @@ The tables are created automatically on startup by `functions/api/db.py`.
 ## businesses
 | Column | Type | Notes |
 |---|---|---|
-| id | INTEGER PK | |
+| id | INTEGER PK | One row per QR code |
 | name | TEXT | Business name shown on the public page |
 | email | TEXT UNIQUE | Stored lower-case |
 | password_hash | TEXT | PBKDF2-SHA256, `salt$hash` |
@@ -35,3 +35,5 @@ The tables are created automatically on startup by `functions/api/db.py`.
 | created_at | TEXT | ISO 8601 UTC |
 
 Each content item belongs to one `qr_codes.id` through `contents.qr_code_id`.
+Only one content item is allowed for each QR code. Link QR codes redirect
+directly to their current URL; image and PDF QR codes serve their current file.

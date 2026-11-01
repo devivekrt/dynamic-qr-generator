@@ -1,15 +1,16 @@
 from html import escape
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse
 
 from db import get_db
+from config import UPLOAD_DIR
 
 router = APIRouter(tags=["public"])
 NO_CACHE = {"Cache-Control": "no-cache"}
 
 
-def load_page(db, slug: str):
+def load_content(db, slug: str):
     biz = db.execute(
         """SELECT b.id, b.name, q.name AS qr_name, q.slug
            FROM qr_codes q JOIN businesses b ON b.id = q.business_id
@@ -17,87 +18,40 @@ def load_page(db, slug: str):
         (slug,),
     ).fetchone()
     if biz is None:
-        raise HTTPException(404, "This page does not exist")
-    items = db.execute(
-        "SELECT * FROM contents WHERE qr_code_id = "
-        "(SELECT id FROM qr_codes WHERE slug = ?) ORDER BY id DESC",
+        raise HTTPException(404, "This QR code does not exist")
+    item = db.execute(
+        "SELECT * FROM contents WHERE qr_code_id = (SELECT id FROM qr_codes WHERE slug = ?)",
         (slug,),
-    ).fetchall()
-    return biz, items
+    ).fetchone()
+    return biz, item
 
 
-def render_item(item) -> str:
-    title = escape(item["title"])
-    kind = item["type"]
-    file_url = f"/uploads/{escape(item['file_name'])}" if item["file_name"] else ""
-
-    if kind == "text":
-        body = escape(item["text_value"] or "").replace("\n", "<br>")
-        return f'<section class="block"><h2>{title}</h2><p>{body}</p></section>'
-    if kind == "image":
-        return (
-            f'<figure class="block"><img src="{file_url}" alt="{title}" loading="lazy">'
-            f"<figcaption>{title}</figcaption></figure>"
+@router.get("/q/{slug}")
+@router.get("/b/{slug}")
+def public_content(slug: str, db=Depends(get_db)):
+    _, item = load_content(db, slug)
+    if item is None:
+        raise HTTPException(404, "This QR code has no content yet")
+    if item["type"] == "link":
+        return RedirectResponse(item["url_value"], status_code=307, headers=NO_CACHE)
+    if item["type"] in {"image", "pdf"}:
+        return FileResponse(
+            f"{UPLOAD_DIR}/{item['file_name']}",
+            media_type="image/*" if item["type"] == "image" else "application/pdf",
+            headers=NO_CACHE,
         )
-    if kind == "pdf":
-        return (
-            f'<a class="block link" href="{file_url}" target="_blank" rel="noopener">'
-            f'<span>{title}</span><small>PDF</small></a>'
-        )
-    url = escape(item["url_value"] or "", quote=True)
-    return (
-        f'<a class="block link" href="{url}" target="_blank" rel="noopener noreferrer">'
-        f"<span>{title}</span><small>Open link</small></a>"
-    )
-
-
-def render_page(biz, items) -> str:
-    name = escape(biz["qr_name"] or biz["name"])
-    body = "".join(render_item(i) for i in items) or (
-        '<p class="empty">Nothing is posted yet. Check back soon.</p>'
-    )
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{name}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css">
-</head>
-<body class="public">
-<main class="public-wrap">
-<header class="public-head"><p class="hint">{escape(biz["name"])}</p><h1>{name}</h1></header>
-{body}
-</main>
-</body>
-</html>"""
-
-
-@router.get("/q/{slug}", response_class=HTMLResponse)
-@router.get("/b/{slug}", response_class=HTMLResponse)
-def public_page(slug: str, db=Depends(get_db)):
-    biz, items = load_page(db, slug)
-    return HTMLResponse(render_page(biz, items), headers=NO_CACHE)
+    return PlainTextResponse(item["text_value"] or "", headers=NO_CACHE)
 
 
 @router.get("/api/public/{slug}")
 def public_json(slug: str, db=Depends(get_db)):
-    biz, items = load_page(db, slug)
+    biz, item = load_content(db, slug)
     return {
         "business_name": biz["name"],
-        "items": [
-            {
-                "id": i["id"],
-                "title": i["title"],
-                "type": i["type"],
-                "text": i["text_value"],
-                "url": i["url_value"],
-                "file_url": f"/uploads/{i['file_name']}" if i["file_name"] else None,
-                "updated_at": i["updated_at"],
-            }
-            for i in items
-        ],
+        "content": {
+            "id": item["id"], "title": item["title"], "type": item["type"],
+            "text": item["text_value"], "url": item["url_value"],
+            "file_url": f"/uploads/{item['file_name']}" if item["file_name"] else None,
+            "updated_at": item["updated_at"],
+        } if item else None,
     }

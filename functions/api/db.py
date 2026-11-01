@@ -76,6 +76,22 @@ def init_db() -> None:
             "UPDATE contents SET qr_code_id = ? WHERE business_id = ? AND qr_code_id IS NULL",
             (qr_id, business["id"]),
         )
+    # Older versions allowed multiple items per QR. Keep the newest item for
+    # each QR before enforcing the one-content-per-QR rule.
+    duplicate_qrs = conn.execute(
+        """SELECT qr_code_id FROM contents WHERE qr_code_id IS NOT NULL
+           GROUP BY qr_code_id HAVING COUNT(*) > 1"""
+    ).fetchall()
+    for duplicate in duplicate_qrs:
+        rows = conn.execute(
+            "SELECT id, file_name FROM contents WHERE qr_code_id = ? ORDER BY updated_at DESC, id DESC",
+            (duplicate["qr_code_id"],),
+        ).fetchall()
+        for row in rows[1:]:
+            conn.execute("DELETE FROM contents WHERE id = ?", (row["id"],))
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_contents_one_per_qr ON contents(qr_code_id)"
+    )
     conn.commit()
     conn.close()
 

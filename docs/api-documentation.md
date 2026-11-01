@@ -32,7 +32,7 @@ Owner endpoints need the header `Authorization: Bearer <token>`.
 | Method | Path | Response |
 |---|---|---|
 | GET | `/q/{slug}` | HTML page for customers (the QR target) |
-| GET | `/api/public/{slug}` | `{business_name, items[]}` |
+| GET | `/api/public/{slug}` | `{business_name, content}` |
 | GET | `/uploads/{file}` | Uploaded image or PDF |
 
 ## Errors

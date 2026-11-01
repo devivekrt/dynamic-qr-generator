@@ -92,12 +92,12 @@ async function dashboardView() {
       <form id="qr-form" class="new-qr"><input id="qr-name" required maxlength="120" placeholder="New QR name, e.g. Table 1">
       <button class="btn primary" type="submit">Create QR code</button></form></section>
       <p class="error" id="err"></p><div class="qr-grid">${codes.map((code) => `<article class="qr-card" data-qr="${code.id}">
-        <div class="qr-card-head"><div><h3>${esc(code.name)}</h3><span class="hint">${code.content_count} content item${code.content_count === 1 ? "" : "s"}</span></div>
+        <div class="qr-card-head"><div><h3>${esc(code.name)}</h3><span class="hint">One permanent destination</span></div>
         <button class="btn small danger" data-act="delete-qr">Delete</button></div>
         <img class="qr-image" data-qr-image alt="QR code for ${esc(code.name)}"><p class="url">${esc(code.public_url)}</p>
         <div class="row"><a class="btn small" href="${esc(code.public_url)}" target="_blank" rel="noopener">View page</a>
-        <button class="btn small" data-act="download-qr">Download</button><a class="btn primary small" href="#/editor/new?qr=${code.id}">Add content</a></div>
-        <div class="qr-items"><p class="hint">Loading content…</p></div></article>`).join("")}</div></main>`;
+        <button class="btn small" data-act="download-qr">Download</button><a class="btn primary small" href="#/editor/new?qr=${code.id}">Set destination</a></div>
+        <div class="qr-items"><p class="hint">Loading destination…</p></div></article>`).join("")}</div></main>`;
   document.getElementById("logout").onclick = logout;
   const err = document.getElementById("err");
   document.getElementById("qr-form").onsubmit = async (e) => {
@@ -108,10 +108,12 @@ async function dashboardView() {
   for (const code of codes) {
     const card = root.querySelector(`[data-qr="${code.id}"]`);
     try {
-      const [blob, items] = await Promise.all([api(`/business/qr-codes/${code.id}/image`, { blob: true }), api(`/content?qr_code_id=${code.id}`)]);
+      const [blob, item] = await Promise.all([api(`/business/qr-codes/${code.id}/image`, { blob: true }), api(`/content?qr_code_id=${code.id}`)]);
       const url = URL.createObjectURL(blob); state.qrUrls.set(code.id, url);
       card.querySelector("[data-qr-image]").src = url;
-      card.querySelector(".qr-items").innerHTML = items.length ? `<div class="items">${items.map(itemRow).join("")}</div>` : `<p class="hint">No content yet.</p>`;
+      card.querySelector(".qr-items").innerHTML = item
+        ? `<div class="items">${itemRow(item)}</div>`
+        : `<p class="hint">No destination yet. Add one link or image.</p>`;
       card.querySelector("[data-act='download-qr']").onclick = () => { const a = document.createElement("a"); a.href = url; a.download = `qr-${code.slug}.png`; a.click(); };
       card.querySelector("[data-act='delete-qr']").onclick = async () => {
         if (!confirm("Delete this QR code and its content? Its printed code will stop working.")) return;

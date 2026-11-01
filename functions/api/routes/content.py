@@ -86,11 +86,11 @@ def has_file(file: Optional[UploadFile]) -> bool:
 @router.get("")
 def list_content(qr_code_id: int = Query(...), biz=Depends(current_business), db=Depends(get_db)):
     get_qr(db, qr_code_id, biz["id"])
-    rows = db.execute(
-        "SELECT * FROM contents WHERE business_id = ? AND qr_code_id = ? ORDER BY id DESC",
+    row = db.execute(
+        "SELECT * FROM contents WHERE business_id = ? AND qr_code_id = ?",
         (biz["id"], qr_code_id),
-    ).fetchall()
-    return [serialize(r) for r in rows]
+    ).fetchone()
+    return serialize(row) if row else None
 
 
 @router.get("/{content_id}")
@@ -110,6 +110,8 @@ def create_content(
     db=Depends(get_db),
 ):
     get_qr(db, qr_code_id, biz["id"])
+    if db.execute("SELECT 1 FROM contents WHERE qr_code_id = ?", (qr_code_id,)).fetchone():
+        raise HTTPException(409, "This QR code already has content. Edit it instead.")
     if type not in TYPES:
         raise HTTPException(422, "Choose a content type")
     text, url, stored, original = None, None, None, None

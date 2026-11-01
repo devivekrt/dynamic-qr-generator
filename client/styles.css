@@ -86,7 +86,7 @@ textarea { min-height: 130px; resize: vertical; }
 .item .ops { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .empty-state { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 36px 20px; text-align: center; color: var(--muted); }
 
-/* ---------- public page (rendered by Python) ---------- */
+/* ---------- public content responses ---------- */
 body.public { background: var(--bg); }
 .public-wrap { max-width: 560px; margin: 0 auto; padding: 36px 18px 60px; display: grid; gap: 14px; }
 .public-head { padding: 8px 2px 14px; border-bottom: 2px solid var(--ink); }
