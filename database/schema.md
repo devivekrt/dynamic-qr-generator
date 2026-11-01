@@ -24,3 +24,14 @@ The tables are created automatically on startup by `functions/api/db.py`.
 | file_name | TEXT | Stored name in `uploads/` (image, pdf) |
 | original_name | TEXT | Name the owner uploaded |
 | created_at / updated_at | TEXT | ISO 8601 UTC |
+
+## qr_codes
+| Column | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| business_id | INTEGER FK | `ON DELETE CASCADE` |
+| name | TEXT | Owner-facing QR name |
+| slug | TEXT UNIQUE | Permanent public id used by the printed QR |
+| created_at | TEXT | ISO 8601 UTC |
+
+Each content item belongs to one `qr_codes.id` through `contents.qr_code_id`.

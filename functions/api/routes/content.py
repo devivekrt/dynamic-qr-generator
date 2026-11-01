@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Query
 
 from config import MAX_UPLOAD_BYTES, UPLOAD_DIR
 from db import get_db
@@ -34,6 +34,16 @@ def get_owned(db, content_id: int, business_id: int):
     ).fetchone()
     if row is None:
         raise HTTPException(404, "Content not found")
+    return row
+
+
+def get_qr(db, qr_code_id: int, business_id: int):
+    row = db.execute(
+        "SELECT * FROM qr_codes WHERE id = ? AND business_id = ?",
+        (qr_code_id, business_id),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(404, "QR code not found")
     return row
 
 
@@ -74,9 +84,11 @@ def has_file(file: Optional[UploadFile]) -> bool:
 
 
 @router.get("")
-def list_content(biz=Depends(current_business), db=Depends(get_db)):
+def list_content(qr_code_id: int = Query(...), biz=Depends(current_business), db=Depends(get_db)):
+    get_qr(db, qr_code_id, biz["id"])
     rows = db.execute(
-        "SELECT * FROM contents WHERE business_id = ? ORDER BY id DESC", (biz["id"],)
+        "SELECT * FROM contents WHERE business_id = ? AND qr_code_id = ? ORDER BY id DESC",
+        (biz["id"], qr_code_id),
     ).fetchall()
     return [serialize(r) for r in rows]
 
@@ -93,9 +105,11 @@ def create_content(
     text_value: Optional[str] = Form(None),
     url_value: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
+    qr_code_id: int = Form(...),
     biz=Depends(current_business),
     db=Depends(get_db),
 ):
+    get_qr(db, qr_code_id, biz["id"])
     if type not in TYPES:
         raise HTTPException(422, "Choose a content type")
     text, url, stored, original = None, None, None, None
@@ -112,9 +126,9 @@ def create_content(
         stored, original = save_upload(file, type)
 
     cur = db.execute(
-        "INSERT INTO contents (business_id, title, type, text_value, url_value, "
-        "file_name, original_name, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
-        (biz["id"], title.strip(), type, text, url, stored, original, now(), now()),
+        "INSERT INTO contents (business_id, qr_code_id, title, type, text_value, url_value, "
+        "file_name, original_name, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (biz["id"], qr_code_id, title.strip(), type, text, url, stored, original, now(), now()),
     )
     db.commit()
     return serialize(get_owned(db, cur.lastrowid, biz["id"]))

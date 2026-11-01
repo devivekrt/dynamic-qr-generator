@@ -32,6 +32,14 @@ def make_slug(db, name: str) -> str:
             return slug
 
 
+def make_qr_slug(db, name: str) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:30] or "qr"
+    while True:
+        slug = f"{base}-{secrets.token_hex(3)}"
+        if db.execute("SELECT 1 FROM qr_codes WHERE slug = ?", (slug,)).fetchone() is None:
+            return slug
+
+
 @router.post("/register", status_code=201)
 def register(data: RegisterIn, db=Depends(get_db)):
     email = data.email.strip().lower()
@@ -51,6 +59,10 @@ def register(data: RegisterIn, db=Depends(get_db)):
             make_slug(db, name),
             datetime.now(timezone.utc).isoformat(),
         ),
+    )
+    db.execute(
+        "INSERT INTO qr_codes (business_id, name, slug, created_at) VALUES (?, ?, ?, ?)",
+        (cur.lastrowid, "Main QR code", make_qr_slug(db, name), datetime.now(timezone.utc).isoformat()),
     )
     db.commit()
     return {"token": create_token(cur.lastrowid), "business_name": name}

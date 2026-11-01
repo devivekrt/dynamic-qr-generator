@@ -1,16 +1,17 @@
 # Architecture
 
 ```
-Customer phone ──scan QR──▶ GET /b/{slug}  ──▶ FastAPI renders the public page (HTML)
+Customer phone ──scan QR──▶ GET /q/{slug}  ──▶ FastAPI renders that QR's public page (HTML)
                                                      │
 Business owner ──▶ client (HTML/CSS/JS) ──▶ /api/*  ─┤──▶ SQLite (data.db)
                                                      └──▶ uploads/ (images, PDFs)
 ```
 
 ## Key idea
-The QR code encodes `BASE_URL/b/{slug}`. The slug is fixed when the account is
-created, so the printed code never changes. The page behind it is built from the
-database on every request, so edits appear immediately.
+Each QR code encodes `BASE_URL/q/{slug}`. The slug is generated once and never
+changes. A business can create many QR codes, each with its own content. The
+page behind each code is built from the database on every request, so edits
+appear immediately without reprinting.
 
 ## Components
 - **client/**: static files served by FastAPI. `app.js` is a small single-page
@@ -19,9 +20,9 @@ database on every request, so edits appear immediately.
 - **functions/api/**: Python backend (FastAPI).
   - `main.py` wires routers, `/uploads` and the client.
   - `routes/auth.py` register and login (JWT).
-  - `routes/business.py` profile and QR PNG.
+  - `routes/business.py` profile, QR CRUD and QR PNG.
   - `routes/content.py` create, edit, replace file, delete.
-  - `routes/public.py` public page (`/b/{slug}`) and public JSON.
+  - `routes/public.py` public page (`/q/{slug}`) and public JSON.
   - `security.py` password hashing, tokens, auth dependency.
   - `db.py`, `config.py` storage and settings.
 - **database/**: schema reference.
