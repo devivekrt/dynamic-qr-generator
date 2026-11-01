@@ -77,6 +77,7 @@ function itemRow(it) {
     ${it.type === "text" ? `<a class="btn small" href="#/editor/${it.id}">Edit text</a>` : ""}
     ${it.type === "link" ? `<a class="btn small" href="#/editor/${it.id}">Edit link</a>` : ""}
     ${it.type === "image" || it.type === "pdf" ? `<button class="btn small" data-act="replace">Replace file</button><input type="file" class="hidden" data-file accept="${it.type === "pdf" ? ".pdf" : "image/*"}">` : ""}
+    <button class="btn small danger" data-act="delete">Delete content</button>
     </div></article>`;
 }
 
@@ -112,7 +113,7 @@ async function dashboardView() {
       card.querySelector("[data-qr-image]").src = url;
       card.querySelector(".qr-items").innerHTML = item
         ? `<div class="items">${itemRow(item)}</div>`
-        : `<p class="hint">No destination yet. Add one link or image.</p>`;
+        : `<div class="hint"><strong>No content assigned</strong><br>Set a destination to make this QR code useful.</div>`;
       const destination = card.querySelector("[data-act='destination']");
       if (item) {
         destination.textContent = "Update destination";
@@ -125,6 +126,10 @@ async function dashboardView() {
       };
       card.querySelectorAll(".item").forEach((el) => {
         const id = el.dataset.id, input = el.querySelector("[data-file]");
+        el.querySelector("[data-act='delete']").onclick = async () => {
+          if (!confirm("Delete this content? The QR code will remain available.")) return;
+          try { await api(`/content/${id}`, { method: "DELETE" }); dashboardView(); } catch (ex) { err.textContent = ex.message; }
+        };
         const replace = el.querySelector("[data-act='replace']");
         if (replace) { replace.onclick = () => input.click(); input.onchange = async () => {
           if (!input.files.length) return; const form = new FormData(); form.append("file", input.files[0]);
