@@ -2,6 +2,8 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CLIENT_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "client"))
+if not os.path.isdir(CLIENT_DIR):
+    CLIENT_DIR = os.path.join(BASE_DIR, "client")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
 TOKEN_DAYS = int(os.getenv("TOKEN_DAYS", "7"))
