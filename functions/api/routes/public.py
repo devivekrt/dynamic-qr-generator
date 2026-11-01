@@ -11,12 +11,17 @@ NO_CACHE = {"Cache-Control": "no-cache"}
 
 def load_page(db, slug: str):
     biz = db.execute(
-        "SELECT id, name, slug FROM businesses WHERE slug = ?", (slug,)
+        """SELECT b.id, b.name, q.name AS qr_name, q.slug
+           FROM qr_codes q JOIN businesses b ON b.id = q.business_id
+           WHERE q.slug = ?""",
+        (slug,),
     ).fetchone()
     if biz is None:
         raise HTTPException(404, "This page does not exist")
     items = db.execute(
-        "SELECT * FROM contents WHERE business_id = ? ORDER BY id DESC", (biz["id"],)
+        "SELECT * FROM contents WHERE qr_code_id = "
+        "(SELECT id FROM qr_codes WHERE slug = ?) ORDER BY id DESC",
+        (slug,),
     ).fetchall()
     return biz, items
 
@@ -47,7 +52,7 @@ def render_item(item) -> str:
 
 
 def render_page(biz, items) -> str:
-    name = escape(biz["name"])
+    name = escape(biz["qr_name"] or biz["name"])
     body = "".join(render_item(i) for i in items) or (
         '<p class="empty">Nothing is posted yet. Check back soon.</p>'
     )
@@ -64,13 +69,14 @@ def render_page(biz, items) -> str:
 </head>
 <body class="public">
 <main class="public-wrap">
-<header class="public-head"><h1>{name}</h1></header>
+<header class="public-head"><p class="hint">{escape(biz["name"])}</p><h1>{name}</h1></header>
 {body}
 </main>
 </body>
 </html>"""
 
 
+@router.get("/q/{slug}", response_class=HTMLResponse)
 @router.get("/b/{slug}", response_class=HTMLResponse)
 def public_page(slug: str, db=Depends(get_db)):
     biz, items = load_page(db, slug)

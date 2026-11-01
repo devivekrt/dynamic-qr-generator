@@ -1,8 +1,9 @@
 # Dynamic QR Code Generator for Businesses
 
-A business creates one permanent QR code. Customers scan it and open a public
-page. The owner can change menus, offers, images, PDFs and links at any time
-without reprinting the code.
+A business can create multiple permanent QR codes. Customers scan a code and
+open its public page. The owner can change that code's text, offers, images,
+PDFs and links at any time without reprinting it. Each QR code has its own
+stable URL and content.
 
 Backend: Python (FastAPI + SQLite). Frontend: static HTML, CSS and a small
 `app.js` (browsers cannot run Python, so the client script stays JavaScript).
