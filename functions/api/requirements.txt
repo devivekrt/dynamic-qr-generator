@@ -1,6 +1,7 @@
-fastapi>=0.110
-uvicorn[standard]>=0.29
-python-multipart>=0.0.9
-PyJWT>=2.8
-qrcode[pil]>=7.4
-zcatalyst-sdk>=1.0
+fastapi==0.115.6
+pydantic==2.9.2
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+PyJWT==2.10.1
+qrcode[pil]==8.0
+zcatalyst-sdk==1.0.1

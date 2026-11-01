@@ -11,10 +11,12 @@ Backend: Python (FastAPI + Catalyst Data Store/File Store). Frontend: static HTM
 ## Run locally
 ```bash
 cd functions/api
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+python3.12 -m venv .venv && source .venv/bin/activate   # Windows: py -3.12 -m venv .venv
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
+Use Python 3.12 or 3.13. Python 3.15 does not currently have compatible
+`pydantic-core` wheels.
 Open http://127.0.0.1:8000, create an account, add content, download the QR code.
 
 ## Settings (environment variables)
