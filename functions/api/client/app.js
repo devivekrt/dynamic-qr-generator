@@ -74,9 +74,9 @@ function itemRow(it) {
     `<div class="thumb">${TYPE_LABEL[it.type]}</div>`;
   const detail = it.type === "link" ? it.url_value : it.type === "text" ? it.text_value : it.original_name;
   const file = it.type === "image" || it.type === "pdf";
-  return `<article class="item" data-id="${it.id}">${thumb}<div class="meta"><strong>${esc(it.title)}</strong>
+  return `<article class="item" data-id="${it.id}">${thumb}<div class="meta">
     <span>${TYPE_LABEL[it.type]} · ${esc((detail || "").slice(0, 70))}</span></div><div class="ops">
-    <a class="btn small" href="#/editor/${it.id}">Edit</a>
+    <a class="btn small" href="#/editor/${it.id}">Update destination</a>
     ${file ? `<button class="btn small" data-act="replace">Replace file</button><input type="file" class="hidden" data-file accept="${it.type === "pdf" ? ".pdf" : "image/*"}">` : ""}
     <button class="btn small danger" data-act="delete">Delete</button></div></article>`;
 }
@@ -96,7 +96,7 @@ async function dashboardView() {
         <button class="btn small danger" data-act="delete-qr">Delete</button></div>
         <img class="qr-image" data-qr-image alt="QR code for ${esc(code.name)}"><p class="url">${esc(code.public_url)}</p>
         <div class="row"><a class="btn small" href="${esc(code.public_url)}" target="_blank" rel="noopener">View page</a>
-        <button class="btn small" data-act="download-qr">Download</button><a class="btn primary small" href="#/editor/new?qr=${code.id}">Set destination</a></div>
+        <button class="btn small" data-act="download-qr">Download</button><a class="btn primary small" data-act="destination" href="#/editor/new?qr=${code.id}">Set destination</a></div>
         <div class="qr-items"><p class="hint">Loading destination…</p></div></article>`).join("")}</div></main>`;
   document.getElementById("logout").onclick = logout;
   const err = document.getElementById("err");
@@ -114,6 +114,11 @@ async function dashboardView() {
       card.querySelector(".qr-items").innerHTML = item
         ? `<div class="items">${itemRow(item)}</div>`
         : `<p class="hint">No destination yet. Add one link or image.</p>`;
+      const destination = card.querySelector("[data-act='destination']");
+      if (item) {
+        destination.textContent = "Update destination";
+        destination.href = `#/editor/${item.id}`;
+      }
       card.querySelector("[data-act='download-qr']").onclick = () => { const a = document.createElement("a"); a.href = url; a.download = `qr-${code.slug}.png`; a.click(); };
       card.querySelector("[data-act='delete-qr']").onclick = async () => {
         if (!confirm("Delete this QR code and its content? Its printed code will stop working.")) return;
@@ -138,16 +143,15 @@ async function dashboardView() {
 async function editorView(id) {
   const isNew = id === "new", params = new URLSearchParams(location.hash.split("?")[1] || "");
   const qrId = params.get("qr");
-  let item = { title: "", type: "text", text_value: "", url_value: "" };
+  let item = { type: "text", text_value: "", url_value: "" };
   if (!isNew) { try { item = await api(`/content/${id}`); } catch (_) { return go("/dashboard"); } }
-  root.innerHTML = `<main class="shell wide"><form class="panel" id="editor"><h1>${isNew ? "Add content" : "Edit content"}</h1>
-    <label for="title">Title</label><input id="title" required maxlength="120" value="${esc(item.title)}">
+  root.innerHTML = `<main class="shell wide"><form class="panel" id="editor"><h1>${isNew ? "Set destination" : "Update destination"}</h1>
     <label for="type">Content type</label><select id="type" ${isNew ? "" : "disabled"}>${Object.entries(TYPE_LABEL).map(([v, l]) =>
       `<option value="${v}" ${item.type === v ? "selected" : ""}>${l}</option>`).join("")}</select>
     <div id="f-text"><label for="text">Text</label><textarea id="text">${esc(item.text_value)}</textarea></div>
     <div id="f-link"><label for="url">Link address</label><input id="url" type="url" placeholder="https://" value="${esc(item.url_value)}"></div>
     <div id="f-file"><label for="file">File</label><input id="file" type="file"><p class="hint" id="file-hint"></p></div>
-    <p class="error" id="err"></p><button class="btn primary" type="submit">${isNew ? "Save content" : "Save changes"}</button>
+    <p class="error" id="err"></p><button class="btn primary" type="submit">${isNew ? "Set destination" : "Update destination"}</button>
     <p class="switch"><a href="#/dashboard">Back to dashboard</a></p></form></main>`;
   const typeEl = document.getElementById("type"), fileEl = document.getElementById("file");
   const sync = () => { const t = typeEl.value;
@@ -158,7 +162,7 @@ async function editorView(id) {
   typeEl.onchange = sync; sync();
   document.getElementById("editor").onsubmit = async (e) => {
     e.preventDefault(); const err = document.getElementById("err"); err.textContent = "";
-    const t = typeEl.value, form = new FormData(); form.append("title", document.getElementById("title").value);
+    const t = typeEl.value, form = new FormData();
     if (isNew) { form.append("type", t); form.append("qr_code_id", qrId); }
     if (t === "text") form.append("text_value", document.getElementById("text").value);
     if (t === "link") form.append("url_value", document.getElementById("url").value);

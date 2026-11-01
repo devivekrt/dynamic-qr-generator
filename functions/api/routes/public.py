@@ -56,7 +56,7 @@ def public_content(slug: str, request: Request):
 def public_json(slug: str, request: Request):
     qr, item = load_content(request, slug)
     return {"qr_name": qr["QR_NAME"], "content": {
-        "id": row_id(item), "title": item["TITLE"], "type": item["TYPE"],
+        "id": row_id(item), "type": item["TYPE"],
         "text": item.get("TEXT_VALUE"), "url": item.get("URL_VALUE"),
         "file_id": item.get("FILE_ID"),
     } if item else None}

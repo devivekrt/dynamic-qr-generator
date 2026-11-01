@@ -30,7 +30,6 @@ Each QR code has one destination record.
 | Column | Type |
 |---|---|
 | `QR_CODE_ID` | foreign key to QrCodes |
-| `TITLE` | varchar |
 | `TYPE` | varchar |
 | `TEXT_VALUE` | text |
 | `URL_VALUE` | varchar |

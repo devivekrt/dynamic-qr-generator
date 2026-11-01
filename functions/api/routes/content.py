@@ -18,7 +18,6 @@ def serialize(row: Optional[dict]) -> Optional[dict]:
     return {
         "id": row.get("ROWID"),
         "qr_code_id": row.get("QR_CODE_ID"),
-        "title": row.get("TITLE"),
         "type": row.get("TYPE"),
         "text_value": row.get("TEXT_VALUE"),
         "url_value": row.get("URL_VALUE"),
@@ -61,7 +60,7 @@ def get_content(content_id: str, request: Request, biz=Depends(current_business)
 
 @router.post("", status_code=201)
 async def create_content(
-    request: Request, title: str = Form(..., min_length=1, max_length=120), type: str = Form(...),
+    request: Request, type: str = Form(...),
     text_value: Optional[str] = Form(None), url_value: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None), qr_code_id: str = Form(...),
     biz=Depends(current_business),
@@ -71,7 +70,7 @@ async def create_content(
         raise HTTPException(409, "This QR code already has content. Edit it instead.")
     if type not in TYPES:
         raise HTTPException(422, "Choose a content type")
-    values = {"QR_CODE_ID": qr_code_id, "TITLE": title.strip(), "TYPE": type}
+    values = {"QR_CODE_ID": qr_code_id, "TYPE": type}
     if type == "text":
         values["TEXT_VALUE"] = (text_value or "").strip()
         if not values["TEXT_VALUE"]:
@@ -87,13 +86,12 @@ async def create_content(
 
 @router.put("/{content_id}")
 async def update_content(
-    content_id: str, request: Request, title: str = Form(..., min_length=1, max_length=120),
+    content_id: str, request: Request,
     text_value: Optional[str] = Form(None), url_value: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None), biz=Depends(current_business),
 ):
     row = get_owned_content(request, content_id, str(biz.get("ROWID")))
     values = dict(row)
-    values["TITLE"] = title.strip()
     if row["TYPE"] == "text":
         values["TEXT_VALUE"] = (text_value or "").strip()
         if not values["TEXT_VALUE"]:
