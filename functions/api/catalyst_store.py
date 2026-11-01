@@ -104,7 +104,7 @@ def upload_file(request: Request, filename: str, data: bytes) -> str:
 
 def download_file(request: Request, file_id: str) -> bytes:
     folder = app_for(request).filestore().folder(FOLDER_ID)
-    return folder.file(file_id).download_file()
+    return folder.download_file(file_id)
 
 
 def remove_file(request: Request, file_id: Optional[str]) -> None:
