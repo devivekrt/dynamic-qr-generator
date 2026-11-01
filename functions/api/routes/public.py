@@ -1,3 +1,6 @@
+import mimetypes
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 
@@ -6,6 +9,26 @@ from fastapi import status
 
 router = APIRouter(tags=["public"])
 NO_CACHE = {"Cache-Control": "no-cache"}
+
+
+def file_response(request: Request, item: dict) -> Response:
+    filename = os.path.basename(str(item.get("FILE_NAME") or "download"))
+    media_type = mimetypes.guess_type(filename)[0]
+    if item["TYPE"] == "pdf":
+        media_type = "application/pdf"
+    elif not media_type or not media_type.startswith("image/"):
+        media_type = "application/octet-stream"
+    safe_filename = filename.replace('"', "").replace("\r", "").replace("\n", "")
+    headers = {
+        **NO_CACHE,
+        "Content-Disposition": f'inline; filename="{safe_filename}"',
+        "X-Content-Type-Options": "nosniff",
+    }
+    return Response(
+        download_file(request, str(item["FILE_ID"])),
+        media_type=media_type,
+        headers=headers,
+    )
 
 
 def load_content(request: Request, slug: str):
@@ -25,8 +48,7 @@ def public_content(slug: str, request: Request):
     if item["TYPE"] == "link":
         return RedirectResponse(item["URL_VALUE"], status_code=status.HTTP_307_TEMPORARY_REDIRECT, headers=NO_CACHE)
     if item["TYPE"] in {"image", "pdf"}:
-        media_type = "image/*" if item["TYPE"] == "image" else "application/pdf"
-        return Response(download_file(request, item["FILE_ID"]), media_type=media_type, headers=NO_CACHE)
+        return file_response(request, item)
     return PlainTextResponse(item.get("TEXT_VALUE") or "", headers=NO_CACHE)
 
 
@@ -45,5 +67,4 @@ def public_file(file_id: str, request: Request):
     item = find_one(request, CONTENTS, lambda r: str(r.get("FILE_ID")) == file_id)
     if item is None:
         raise HTTPException(404, "File not found")
-    media_type = "image/*" if item["TYPE"] == "image" else "application/pdf"
-    return Response(download_file(request, file_id), media_type=media_type, headers=NO_CACHE)
+    return file_response(request, item)
