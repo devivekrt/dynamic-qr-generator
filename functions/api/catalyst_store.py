@@ -90,11 +90,16 @@ def upload_file(request: Request, filename: str, data: bytes) -> str:
     if not FOLDER_ID:
         raise RuntimeError("FILESTORE_FOLDER_ID is not configured")
     folder = app_for(request).filestore().folder(FOLDER_ID)
-    stream = io.BytesIO(data)
-    stream.name = filename
-    result = folder.upload_file(stream)
+    stream = io.BufferedReader(io.BytesIO(data))
+    try:
+        result = folder.upload_file(filename, stream)
+    finally:
+        stream.close()
     details = result.get("file_details", result)
-    return str(details.get("id") or details.get("file_id"))
+    file_id = details.get("id") or details.get("file_id")
+    if not file_id:
+        raise RuntimeError("Catalyst File Store did not return an uploaded file ID")
+    return str(file_id)
 
 
 def download_file(request: Request, file_id: str) -> bytes:
