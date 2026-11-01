@@ -44,7 +44,9 @@ catalyst init
 
 Choose the existing Catalyst project (or create one), select **AppSail**,
 choose the **Catalyst-managed runtime**, and select **Python**. Set the
-AppSail source directory to `functions/api`, then deploy:
+AppSail source directory to `functions/api`. The `app-config.json` in that
+directory starts the service with `python3 main.py`; it binds to Catalyst's
+`X_ZOHO_CATALYST_LISTEN_PORT`. Then deploy:
 
 ```bash
 catalyst deploy appsail
