@@ -6,7 +6,7 @@ from qrcode.constants import ERROR_CORRECT_Q
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 
-from catalyst_store import BUSINESSES, CONTENTS, QR_CODES, all_rows, delete, find_one, get_owned_qr, insert, remove_file
+from catalyst_store import BUSINESSES, CONTENTS, QR_CODES, all_rows, delete, find_one, get_owned_qr, insert, remove_file, row_id
 from config import BASE_URL
 from security import current_business
 
@@ -59,16 +59,21 @@ def create_qr_code(data: dict, request: Request, biz=Depends(current_business)):
     name = str(data.get("name", "")).strip()
     if not 1 <= len(name) <= 120:
         raise HTTPException(422, "Enter a QR code name")
-    row = insert(request, QR_CODES, {
+    slug = unique_slug(request, name)
+    inserted = insert(request, QR_CODES, {
         "BUSINESS_ID": str(biz.get("ROWID")), "QR_NAME": name,
-        "SLUG": unique_slug(request, name),
+        "SLUG": slug,
     })
+    row = find_one(request, QR_CODES, lambda item: item.get("SLUG") == slug) or inserted
+    identifier = row_id(row)
+    if not identifier or identifier == "None":
+        raise HTTPException(500, "QR code was saved but could not be loaded")
     return {
-        "id": row.get("ROWID"),
-        "name": row["QR_NAME"],
-        "slug": row["SLUG"],
+        "id": identifier,
+        "name": row.get("QR_NAME") or name,
+        "slug": row.get("SLUG") or slug,
         "content_count": 0,
-        "public_url": public_url(request, row["SLUG"]),
+        "public_url": public_url(request, row.get("SLUG") or slug),
     }
 
 
