@@ -42,7 +42,8 @@ async function api(path, { method = "GET", body, form, blob = false } = {}) {
 
 function Layout({ children, onLogout }) {
   return <div className="app-shell"><header className="topbar">
-    <a className="brand" href="#/dashboard"><span className="brand-mark">▦</span> Dynamic QR</a>
+    <a className="brand" href="#/dashboard"><span className="brand-mark">▦</span> QRevive</a>
+    <span className="brand-tagline">Change the content, not the code.</span>
     <button className="button ghost" onClick={onLogout}>Log out</button>
   </header>{children}</div>;
 }
@@ -65,6 +66,7 @@ function Auth({ register = false }) {
     } catch (exception) { setError(exception.message); }
   };
   return <main className="auth-page"><form className="auth-card" onSubmit={submit}>
+    <div className="auth-brand">QRevive</div><p className="auth-tagline">Change the content, not the code.</p>
     <span className="eyebrow">PERMANENT QR MANAGEMENT</span><h1>{register ? "Create your workspace" : "Welcome back"}</h1>
     <p className="muted">{register ? "Create QR codes that stay useful after you update them." : "Manage every destination from one place."}</p>
     {register && <Field label="Business name" name="business_name" minLength="2" required />}
@@ -74,16 +76,27 @@ function Auth({ register = false }) {
   </form></main>;
 }
 
-function QrCard({ code, onDelete }) {
+function QrCard({ code, onDelete, onReplaceFile }) {
   const content = code.content;
   const action = content ? `#/editor/${content.id}` : `#/editor/new?qr=${code.id}`;
+  const fileInputId = `replace-${code.id}`;
   return <article className="qr-card">
     <div className="card-heading"><div><h2>{code.name}</h2><span className="badge">{content ? TYPES[content.type] : "No destination"}</span></div>
       <button className="icon-button" title="Download QR" onClick={() => { const link = document.createElement("a"); link.href = code.image; link.download = `qr-${code.slug}.png`; link.click(); }}>↓</button>
     </div>
     <img className="qr-image" src={code.image} alt={`QR code for ${code.name}`} /><p className="url">{code.public_url}</p>
-    <div className="card-actions"><a className="button ghost" href={code.public_url} target="_blank" rel="noreferrer">View</a><a className="button primary" href={action}>{content ? "Update destination" : "Set destination"}</a></div>
-    {content ? <div className="content-row"><span className="type-icon">{content.type.toUpperCase()}</span><strong>{TYPES[content.type]}</strong><button className="text-button" onClick={() => onDelete(content.id)}>Delete content</button></div> : <div className="empty-content">No content assigned yet.</div>}
+    <div className="card-actions"><a className="button ghost" href={code.public_url} target="_blank" rel="noreferrer">View</a><a className="button primary destination-button" href={action}>{content ? "Update destination" : "Set destination"}</a></div>
+    {content ? <div className="content-row"><span className="type-icon">{content.type.toUpperCase()}</span><strong>{TYPES[content.type]}</strong>
+      <div className="content-actions">
+        {content.type === "text" && <a className="text-button" href={action}>Edit text</a>}
+        {content.type === "link" && <a className="text-button" href={action}>Edit link</a>}
+        {(content.type === "image" || content.type === "pdf") && <>
+          <label className="text-button" htmlFor={fileInputId}>Replace file</label>
+          <input id={fileInputId} className="visually-hidden" type="file" accept={content.type === "pdf" ? ".pdf" : "image/*"} onChange={(event) => event.target.files[0] && onReplaceFile(content.id, event.target.files[0])} />
+        </>}
+        <button className="text-button danger-text" onClick={() => onDelete(content.id)}>Delete</button>
+      </div>
+    </div> : <div className="empty-content">No content assigned yet.</div>}
   </article>;
 }
 
@@ -114,13 +127,19 @@ function Dashboard({ onLogout }) {
     try { await api(`/content/${id}`, { method: "DELETE" }); setLoading(true); await load(); }
     catch (exception) { setError(exception.message); }
   };
+  const replaceFile = async (id, file) => {
+    const form = new FormData();
+    form.append("file", file);
+    try { await api(`/content/${id}/file`, { method: "PUT", form }); setLoading(true); await load(); }
+    catch (exception) { setError(exception.message); }
+  };
   return <Layout onLogout={onLogout}><main className="dashboard">
     <section className="hero"><div><span className="eyebrow">WORKSPACE</span><h1>Your QR codes</h1><p className="muted">Print once. Update the destination whenever your business changes.</p></div>
       <form className="create-form" onSubmit={create}><input name="name" placeholder="QR name, e.g. Table 1" required maxLength="120" /><button className="button primary">Create QR</button></form>
     </section>
     {error && <p className="error banner">{error}</p>}
     {loading ? <div className="empty-state">Loading your QR codes…</div> : codes.length === 0 ? <div className="empty-state"><h2>Create your first QR code</h2><p>Each code gets a permanent address that you can update later.</p></div> :
-      <section className="qr-grid">{codes.map((code) => <QrCard key={code.id} code={code} onDelete={removeContent} />)}</section>}
+      <section className="qr-grid">{codes.map((code) => <QrCard key={code.id} code={code} onDelete={removeContent} onReplaceFile={replaceFile} />)}</section>}
   </main></Layout>;
 }
 
@@ -141,7 +160,7 @@ function Editor({ id, onLogout }) {
     <span className="eyebrow">{isNew ? "NEW DESTINATION" : "EDIT DESTINATION"}</span><h1>{isNew ? "Set destination" : "Update destination"}</h1><p className="muted">Your QR code stays the same while this destination changes.</p>
     <label className="field"><span>Content type</span><select name="type" value={item.type} onChange={(event) => setItem({ ...item, type: event.target.value })}>{Object.entries(TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
     {item.type === "text" && <label className="field"><span>Text</span><textarea name="text_value" value={item.text_value || ""} onChange={(event) => setItem({ ...item, text_value: event.target.value })} required /></label>}
-    {item.type === "link" && <Field label="Link address" name="url_value" type="url" defaultValue={item.url_value} placeholder="https://" required />}
+    {item.type === "link" && <Field label="Link address" name="url_value" type="url" value={item.url_value || ""} onChange={(event) => setItem({ ...item, url_value: event.target.value })} placeholder="https://" required />}
     {(item.type === "image" || item.type === "pdf") && <label className="field"><span>{isNew ? "Choose file" : "Replace file"}</span><input name="file" type="file" accept={item.type === "pdf" ? ".pdf" : "image/*"} required={isNew} /></label>}
     {error && <p className="error">{error}</p>}<button className="button primary wide" type="submit">{isNew ? "Set destination" : "Update destination"}</button><a className="back-link" href="#/dashboard">Back to dashboard</a>
   </form></main></Layout>;

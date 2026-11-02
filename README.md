@@ -1,8 +1,10 @@
-# Dynamic QR Code Generator
+# QRevive
+
+> Change the content, not the code.
 
 **Use the live site:** [Open QR Code Generator](https://appsail-50047107962.development.catalystappsail.in)
 
-A business can create multiple permanent QR codes. Customers scan a QR code
+A business can create multiple permanent QR codes. Customers scan a QRevive QR code
 and open its current destination directly. The owner can update text, links,
 images, or PDFs without printing a new QR code.
 
