@@ -24,24 +24,27 @@ const useCases = [
   ["▤", "Documents", "Share and replace PDFs like catalogs or forms."],
 ];
 
-function useHash() {
-  const [hash, setHash] = useState(window.location.hash || "#/");
+function usePath() {
+  const [path, setPath] = useState(`${window.location.pathname}${window.location.search}`);
   useEffect(() => {
-    const change = () => setHash(window.location.hash || "#/dashboard");
-    window.addEventListener("hashchange", change);
-    return () => window.removeEventListener("hashchange", change);
+    const change = () => setPath(`${window.location.pathname}${window.location.search}`);
+    window.addEventListener("popstate", change);
+    return () => window.removeEventListener("popstate", change);
   }, []);
-  return hash;
+  return path;
 }
 
-function go(path) { window.location.hash = path; }
+function go(path) {
+  window.history.pushState({}, "", path);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
 
 function Landing() {
   return <div className="landing">
     <header className="landing-nav">
-      <a className="landing-logo" href="#/"><span className="landing-mark">Q</span> QRevive</a>
+      <a className="landing-logo" href="/"><span className="landing-mark">Q</span> QRevive</a>
       <nav><a href="#landing-features">Features</a><a href="#landing-how">How It Works</a><a href="#landing-use-cases">Use Cases</a><a href="#landing-pricing">Pricing</a></nav>
-      <div className="landing-actions"><a href="#/login">Log in</a><a className="landing-button small" href="#/register">Get started free <span>↗</span></a></div>
+      <div className="landing-actions"><a href="/login">Log in</a><a className="landing-button small" href="/register">Get started free <span>↗</span></a></div>
     </header>
     <main>
       <section className="landing-hero">
@@ -49,7 +52,7 @@ function Landing() {
           <span className="landing-eyebrow"><i /> SMART QR CODES FOR YOUR BUSINESS</span>
           <h1>One QR Code.<br />Update <em>Anytime.</em></h1>
           <p>Create permanent QR codes and change their destination anytime — links, text, images, or PDFs — without printing a new one.</p>
-          <div className="landing-hero-actions"><a className="landing-button" href="#/register">Create your QR code <span>→</span></a><a className="landing-button outline" href="#landing-how">▷ &nbsp; Watch demo</a></div>
+          <div className="landing-hero-actions"><a className="landing-button" href="/register">Create your QR code <span>→</span></a><a className="landing-button outline" href="#landing-how">▷ &nbsp; Watch demo</a></div>
           <div className="landing-checks"><span>✓ Permanent QR Codes</span><span>✓ Update Anytime</span><span>✓ Multiple Content Types</span></div>
         </div>
         <div className="landing-visual"><div className="landing-glow" /><div className="demo-qr-card">
@@ -60,18 +63,18 @@ function Landing() {
         </div></div>
       </section>
       <div className="landing-trust"><strong>ONE QR CODE. ENDLESS POSSIBILITIES.</strong><div><span>↗ Website links</span><span>▤ Text content</span><span>▧ Images</span><span>▣ PDF documents</span></div></div>
-      <section id="landing-features" className="landing-section"><div className="landing-heading"><label>WHY QREVIVE</label><h2>Your QR code stays.<br /><em>Your content evolves.</em></h2><p>Stop wasting time and money printing new QR codes. Keep your content fresh with one simple dashboard.</p></div><div className="landing-feature-grid">{landingFeatures.map(([icon, title, description]) => <article key={title}><b>{icon}</b><h3>{title}</h3><p>{description}</p><a href="#/register">Learn more →</a></article>)}</div></section>
+      <section id="landing-features" className="landing-section"><div className="landing-heading"><label>WHY QREVIVE</label><h2>Your QR code stays.<br /><em>Your content evolves.</em></h2><p>Stop wasting time and money printing new QR codes. Keep your content fresh with one simple dashboard.</p></div><div className="landing-feature-grid">{landingFeatures.map(([icon, title, description]) => <article key={title}><b>{icon}</b><h3>{title}</h3><p>{description}</p><a href="/register">Learn more →</a></article>)}</div></section>
       <section id="landing-how" className="landing-section tinted"><div className="landing-heading"><label>SIMPLE BY DESIGN</label><h2>How It <em>Works</em></h2><p>Create and manage dynamic QR codes in just a few simple steps.</p></div><div className="landing-steps">{landingSteps.map(([number, title, description], index) => <article key={number}><strong>{number}</strong>{index < 4 && <i>→</i>}<h3>{title}</h3><p>{description}</p></article>)}</div></section>
       <section id="landing-use-cases" className="landing-section"><div className="landing-heading"><label>BUILT FOR EVERY BUSINESS</label><h2>Use <em>Cases</em></h2><p>A simple solution for many real-world needs.</p></div><div className="landing-use-grid">{useCases.map(([icon, title, description]) => <article key={title}><b>{icon}</b><h3>{title}</h3><p>{description}</p></article>)}</div></section>
       <section id="landing-pricing" className="landing-section tinted"><div className="landing-heading"><label>SIMPLE PRICING</label><h2>Simple, Flexible <em>Pricing</em></h2><p>Choose a plan that fits your needs.</p></div><div className="landing-pricing-grid"><Price title="Free" price="₹0" detail="Get started at no cost." features={["Up to 5 dynamic QR codes", "Link, Text, Image & PDF", "Basic analytics"]} /><Price title="Pro" price="₹299" detail="For growing businesses." popular features={["Up to 100 dynamic QR codes", "Unlimited updates", "Analytics & scan insights", "Email support"]} /><Price title="Business" price="₹799" detail="For teams and larger needs." features={["Up to 500 dynamic QR codes", "Team access", "Advanced analytics", "Priority support"]} /></div></section>
-      <section className="landing-cta"><div><h2>Create Your <em>Dynamic QR Code</em> Today</h2><p>Update content anytime and keep the same QR code forever.</p></div><a className="landing-button white" href="#/register">Get started free →</a></section>
+      <section className="landing-cta"><div><h2>Create Your <em>Dynamic QR Code</em> Today</h2><p>Update content anytime and keep the same QR code forever.</p></div><a className="landing-button white" href="/register">Get started free →</a></section>
     </main>
-    <footer className="landing-footer"><a className="landing-logo" href="#/"><span className="landing-mark">Q</span> QRevive</a><p>Change the content, not the code.</p><div><a href="#landing-features">Features</a><a href="#landing-pricing">Pricing</a><a href="#/login">Login</a><a href="#/register">Get started</a></div><small>© {new Date().getFullYear()} QRevive. All rights reserved.</small></footer>
+    <footer className="landing-footer"><a className="landing-logo" href="/"><span className="landing-mark">Q</span> QRevive</a><p>Change the content, not the code.</p><div><a href="#landing-features">Features</a><a href="#landing-pricing">Pricing</a><a href="/login">Login</a><a href="/register">Get started</a></div><small>© {new Date().getFullYear()} QRevive. All rights reserved.</small></footer>
   </div>;
 }
 
 function Price({ title, price, detail, features, popular }) {
-  return <article className={`landing-price ${popular ? "popular" : ""}`}>{popular && <span className="popular-label">Most Popular</span>}<h3>{title}</h3><p>{detail}</p><strong>{price}<small>/month</small></strong><ul>{features.map((feature) => <li key={feature}>✓ {feature}</li>)}</ul><a className="landing-button outline" href="#/register">{popular ? "Upgrade to Pro" : title === "Business" ? "Contact sales" : "Get started"}</a></article>;
+  return <article className={`landing-price ${popular ? "popular" : ""}`}>{popular && <span className="popular-label">Most Popular</span>}<h3>{title}</h3><p>{detail}</p><strong>{price}<small>/month</small></strong><ul>{features.map((feature) => <li key={feature}>✓ {feature}</li>)}</ul><a className="landing-button outline" href="/register">{popular ? "Upgrade to Pro" : title === "Business" ? "Contact sales" : "Get started"}</a></article>;
 }
 
 async function api(path, { method = "GET", body, form, blob = false } = {}) {
@@ -100,7 +103,7 @@ async function api(path, { method = "GET", body, form, blob = false } = {}) {
 
 function Layout({ children, onLogout }) {
   return <div className="app-shell"><header className="topbar">
-    <a className="brand" href="#/dashboard"><span className="brand-mark">▦</span> QRevive</a>
+    <a className="brand" href="/dashboard"><span className="brand-mark">▦</span> QRevive</a>
     <span className="brand-tagline">Change the content, not the code.</span>
     <button className="button ghost" onClick={onLogout}>Log out</button>
   </header>{children}</div>;
@@ -130,13 +133,13 @@ function Auth({ register = false }) {
     {register && <Field label="Business name" name="business_name" minLength="2" required />}
     <Field label="Email" name="email" type="email" required /><Field label="Password" name="password" type="password" minLength={register ? 8 : 1} required />
     {error && <p className="error">{error}</p>}<button className="button primary wide" type="submit">{register ? "Create account" : "Log in"}</button>
-    <p className="switch">{register ? "Already have an account?" : "New here?"} <a href={register ? "#/login" : "#/register"}>{register ? "Log in" : "Create an account"}</a></p>
+    <p className="switch">{register ? "Already have an account?" : "New here?"} <a href={register ? "/login" : "/register"}>{register ? "Log in" : "Create an account"}</a></p>
   </form></main>;
 }
 
 function QrCard({ code, onDelete, onReplaceFile }) {
   const content = code.content;
-  const action = content ? `#/editor/${content.id}` : `#/editor/new?qr=${code.id}`;
+  const action = content ? `/editor/${content.id}` : `/editor/new?qr=${code.id}`;
   const fileInputId = `replace-${code.id}`;
   return <article className="qr-card">
     <div className="card-heading"><div><h2>{code.name}</h2><span className="badge">{content ? TYPES[content.type] : "No destination"}</span></div>
@@ -203,7 +206,7 @@ function Dashboard({ onLogout }) {
 
 function Editor({ id, onLogout }) {
   const isNew = id === "new";
-  const qrId = new URLSearchParams(window.location.hash.split("?")[1] || "").get("qr");
+  const qrId = new URLSearchParams(window.location.search).get("qr");
   const [item, setItem] = useState({ type: "text", text_value: "", url_value: "" });
   const [error, setError] = useState("");
   useEffect(() => { if (!isNew) api(`/content/${id}`).then(setItem).catch(() => go("/dashboard")); }, [id, isNew]);
@@ -220,16 +223,16 @@ function Editor({ id, onLogout }) {
     {item.type === "text" && <label className="field"><span>Text</span><textarea name="text_value" value={item.text_value || ""} onChange={(event) => setItem({ ...item, text_value: event.target.value })} required /></label>}
     {item.type === "link" && <Field label="Link address" name="url_value" type="url" value={item.url_value || ""} onChange={(event) => setItem({ ...item, url_value: event.target.value })} placeholder="https://" required />}
     {(item.type === "image" || item.type === "pdf") && <label className="field"><span>{isNew ? "Choose file" : "Replace file"}</span><input name="file" type="file" accept={item.type === "pdf" ? ".pdf" : "image/*"} required={isNew} /></label>}
-    {error && <p className="error">{error}</p>}<button className="button primary wide" type="submit">{isNew ? "Set destination" : "Update destination"}</button><a className="back-link" href="#/dashboard">Back to dashboard</a>
+    {error && <p className="error">{error}</p>}<button className="button primary wide" type="submit">{isNew ? "Set destination" : "Update destination"}</button><a className="back-link" href="/dashboard">Back to dashboard</a>
   </form></main></Layout>;
 }
 
 function App() {
-  const hash = useHash();
-  const [, page, id] = hash.replace(/^#/, "").split("/");
+  const path = usePath();
+  const [, page, id] = path.split(/[/?]/);
   const loggedIn = Boolean(localStorage.getItem("token"));
   const logout = () => { localStorage.removeItem("token"); go("/login"); };
-  const landingRoute = !page || page === "" || page.startsWith("landing-");
+  const landingRoute = !page || page === "";
   if (landingRoute) return <Landing />;
   if (page === "login") return <Auth />;
   if (page === "register") return <Auth register />;
