@@ -92,13 +92,21 @@ async function api(path, { method = "GET", body, form, blob = false } = {}) {
   if (!response.ok) {
     let message = "Something went wrong. Try again.";
     try {
-      const data = await response.json();
+      const data = JSON.parse(await response.text());
       if (typeof data.detail === "string") message = data.detail;
       if (Array.isArray(data.detail)) message = data.detail.map((item) => item.msg).join(". ");
     } catch {}
     throw new Error(message);
   }
-  return blob ? response.blob() : response.status === 204 ? null : response.json();
+  if (blob) return response.blob();
+  if (response.status === 204) return null;
+  const text = await response.text();
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error("The server completed the request but returned an invalid response.");
+  }
 }
 
 function Layout({ children, onLogout }) {
@@ -121,10 +129,32 @@ function Auth({ register = false }) {
     const body = { email: form.get("email"), password: form.get("password") };
     if (register) body.business_name = form.get("business_name");
     try {
-      const result = await api(`/auth/${register ? "register" : "login"}`, { method: "POST", body });
+      let result = await api(`/auth/${register ? "register" : "login"}`, { method: "POST", body });
+      if (register && !result?.token) {
+        result = await api("/auth/login", {
+          method: "POST",
+          body: { email: body.email, password: body.password },
+        });
+      }
+      if (!result?.token) throw new Error("Account was created, but the session could not be started. Please log in.");
       localStorage.setItem("token", result.token);
       go("/dashboard");
-    } catch (exception) { setError(exception.message); }
+    } catch (exception) {
+      if (register) {
+        try {
+          const result = await api("/auth/login", {
+            method: "POST",
+            body: { email: body.email, password: body.password },
+          });
+          if (result?.token) {
+            localStorage.setItem("token", result.token);
+            go("/dashboard");
+            return;
+          }
+        } catch {}
+      }
+      setError(exception.message);
+    }
   };
   return <main className="auth-page"><form className="auth-card" onSubmit={submit}>
     <div className="auth-brand">QRevive</div><p className="auth-tagline">Change the content, not the code.</p>
