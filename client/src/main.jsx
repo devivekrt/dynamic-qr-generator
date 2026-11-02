@@ -25,7 +25,7 @@ const useCases = [
 ];
 
 function useHash() {
-  const [hash, setHash] = useState(window.location.hash || "#/dashboard");
+  const [hash, setHash] = useState(window.location.hash || "#/");
   useEffect(() => {
     const change = () => setHash(window.location.hash || "#/dashboard");
     window.addEventListener("hashchange", change);
@@ -229,7 +229,8 @@ function App() {
   const [, page, id] = hash.replace(/^#/, "").split("/");
   const loggedIn = Boolean(localStorage.getItem("token"));
   const logout = () => { localStorage.removeItem("token"); go("/login"); };
-  if ((!page || page === "") && !loggedIn) return <Landing />;
+  const landingRoute = !page || page === "" || page.startsWith("landing-");
+  if (landingRoute) return <Landing />;
   if (page === "login") return <Auth />;
   if (page === "register") return <Auth register />;
   if (!loggedIn) { go("/login"); return null; }
