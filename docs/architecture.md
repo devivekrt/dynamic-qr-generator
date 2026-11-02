@@ -3,7 +3,7 @@
 ```
 Customer phone ──scan QR──▶ GET /q/{slug}  ──▶ latest link redirect or current file
                                                      │
-Business owner ──▶ client (HTML/CSS/JS) ──▶ /api/*  ─┤──▶ SQLite (data.db)
+Business owner ──▶ React/Vite client ──▶ /api/*  ────┤──▶ Catalyst Data Store
                                                      └──▶ Catalyst File Store (images, PDFs)
 ```
 
@@ -15,9 +15,10 @@ image/PDF QR codes serve the current file. Updating that destination changes
 what customers receive without reprinting.
 
 ## Components
-- **client/**: static files served by FastAPI. `app.js` is a small single-page
-  app (hash routes: `#/login`, `#/register`, `#/dashboard`, `#/editor/:id`).
-  It only calls the JSON API.
+- **client/**: React/Vite source application. `npm run build` writes the
+  production bundle to `functions/api/client`, which FastAPI serves.
+  Hash routes include `#/login`, `#/register`, `#/dashboard`, and
+  `#/editor/:id`.
 - **functions/api/**: Python backend (FastAPI).
   - `main.py` wires routers and the client.
   - `routes/auth.py` register and login (JWT).
@@ -26,7 +27,7 @@ what customers receive without reprinting.
   - `routes/public.py` direct QR destination responses (`/q/{slug}`).
   - `security.py` password hashing, tokens, auth dependency.
   - `catalyst_store.py`, `config.py` Catalyst storage and settings.
-- **database/**: schema reference.
+- **database/**: Catalyst Data Store schema reference.
 
 ## Security notes
 - Passwords: PBKDF2-SHA256 with a random salt.

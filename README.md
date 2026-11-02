@@ -28,10 +28,20 @@ The application is hosted with [Zoho Catalyst](https://www.zoho.com/catalyst/).
 
 ## Developer information
 
-The backend uses Python, FastAPI, Catalyst Data Store, and Catalyst File Store.
-Local development instructions are provided for contributors.
+The frontend uses React and Vite. The backend uses Python, FastAPI, Catalyst
+Data Store, and Catalyst File Store. Local development instructions are
+provided for contributors.
 
 ### Run locally
+
+```bash
+cd client
+npm install
+npm run build
+```
+
+The build outputs directly to `functions/api/client`, which is the static
+frontend directory served by AppSail. Then run the backend:
 
 ```bash
 cd functions/api
