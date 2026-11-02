@@ -137,7 +137,7 @@ function Auth({ register = false }) {
   </form></main>;
 }
 
-function QrCard({ code, onDelete, onReplaceFile }) {
+function QrCard({ code, onDelete, onDeleteQr, onReplaceFile }) {
   const content = code.content;
   const action = content ? `/editor/${content.id}` : `/editor/new?qr=${code.id}`;
   const fileInputId = `replace-${code.id}`;
@@ -147,6 +147,7 @@ function QrCard({ code, onDelete, onReplaceFile }) {
     </div>
     <img className="qr-image" src={code.image} alt={`QR code for ${code.name}`} /><p className="url">{code.public_url}</p>
     <div className="card-actions"><a className="button ghost" href={code.public_url} target="_blank" rel="noreferrer">View</a><a className="button primary destination-button" href={action}>{content ? "Update destination" : "Set destination"}</a></div>
+    <button className="text-button danger-text qr-delete-button" onClick={() => onDeleteQr(code.id, code.name)}>Delete QR code</button>
     {content ? <div className="content-row"><span className="type-icon">{content.type.toUpperCase()}</span><strong>{TYPES[content.type]}</strong>
       <div className="content-actions">
         {content.type === "text" && <a className="text-button" href={action}>Edit text</a>}
@@ -188,6 +189,11 @@ function Dashboard({ onLogout }) {
     try { await api(`/content/${id}`, { method: "DELETE" }); setLoading(true); await load(); }
     catch (exception) { setError(exception.message); }
   };
+  const removeQr = async (id, name) => {
+    if (!window.confirm(`Delete "${name}" and its destination? This cannot be undone.`)) return;
+    try { await api(`/business/qr-codes/${id}`, { method: "DELETE" }); setLoading(true); await load(); }
+    catch (exception) { setError(exception.message); }
+  };
   const replaceFile = async (id, file) => {
     const form = new FormData();
     form.append("file", file);
@@ -200,7 +206,7 @@ function Dashboard({ onLogout }) {
     </section>
     {error && <p className="error banner">{error}</p>}
     {loading ? <div className="empty-state">Loading your QR codes…</div> : codes.length === 0 ? <div className="empty-state"><h2>Create your first QR code</h2><p>Each code gets a permanent address that you can update later.</p></div> :
-      <section className="qr-grid">{codes.map((code) => <QrCard key={code.id} code={code} onDelete={removeContent} onReplaceFile={replaceFile} />)}</section>}
+      <section className="qr-grid">{codes.map((code) => <QrCard key={code.id} code={code} onDelete={removeContent} onDeleteQr={removeQr} onReplaceFile={replaceFile} />)}</section>}
   </main></Layout>;
 }
 
