@@ -1,9 +1,9 @@
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CLIENT_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "client"))
-if not os.path.isdir(CLIENT_DIR):
-    CLIENT_DIR = os.path.join(BASE_DIR, "client")
+BUILT_CLIENT_DIR = os.path.join(BASE_DIR, "client")
+SOURCE_CLIENT_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "client"))
+CLIENT_DIR = BUILT_CLIENT_DIR if os.path.isfile(os.path.join(BUILT_CLIENT_DIR, "index.html")) else SOURCE_CLIENT_DIR
 
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
 TOKEN_DAYS = int(os.getenv("TOKEN_DAYS", "7"))
