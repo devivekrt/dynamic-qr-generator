@@ -3,6 +3,26 @@ import { createRoot } from "react-dom/client";
 import "./styles.css";
 
 const TYPES = { text: "Text", link: "Link", image: "Image", pdf: "PDF" };
+const landingFeatures = [
+  ["↗", "Dynamic links", "Change your destination URL whenever you need. Your printed QR code stays the same."],
+  ["▤", "Editable text", "Share announcements, instructions, and information that you can update anytime."],
+  ["▧", "Images & PDFs", "Replace menus, brochures, catalogs, and documents without reprinting."],
+  ["◉", "Permanent QR codes", "Create one QR code and keep using it for your business over time."],
+];
+const landingSteps = [
+  ["01", "Sign up", "Create an account and log in."],
+  ["02", "Create QR code", "Generate a new QR code."],
+  ["03", "Set destination", "Choose a link, text, image, or PDF."],
+  ["04", "Download & print", "Use your QR code anywhere."],
+  ["05", "Update anytime", "Change content without changing the code."],
+];
+const useCases = [
+  ["⌂", "Businesses", "Update menus, offers, or announcements anytime."],
+  ["□", "Events", "Change event details, schedules, or brochures."],
+  ["◇", "Education", "Share and update study materials or notices."],
+  ["◈", "Marketing", "Run flexible campaigns with one QR code."],
+  ["▤", "Documents", "Share and replace PDFs like catalogs or forms."],
+];
 
 function useHash() {
   const [hash, setHash] = useState(window.location.hash || "#/dashboard");
@@ -15,6 +35,44 @@ function useHash() {
 }
 
 function go(path) { window.location.hash = path; }
+
+function Landing() {
+  return <div className="landing">
+    <header className="landing-nav">
+      <a className="landing-logo" href="#/"><span className="landing-mark">Q</span> QRevive</a>
+      <nav><a href="#landing-features">Features</a><a href="#landing-how">How It Works</a><a href="#landing-use-cases">Use Cases</a><a href="#landing-pricing">Pricing</a></nav>
+      <div className="landing-actions"><a href="#/login">Log in</a><a className="landing-button small" href="#/register">Get started free <span>↗</span></a></div>
+    </header>
+    <main>
+      <section className="landing-hero">
+        <div className="landing-hero-copy">
+          <span className="landing-eyebrow"><i /> SMART QR CODES FOR YOUR BUSINESS</span>
+          <h1>One QR Code.<br />Update <em>Anytime.</em></h1>
+          <p>Create permanent QR codes and change their destination anytime — links, text, images, or PDFs — without printing a new one.</p>
+          <div className="landing-hero-actions"><a className="landing-button" href="#/register">Create your QR code <span>→</span></a><a className="landing-button outline" href="#landing-how">▷ &nbsp; Watch demo</a></div>
+          <div className="landing-checks"><span>✓ Permanent QR Codes</span><span>✓ Update Anytime</span><span>✓ Multiple Content Types</span></div>
+        </div>
+        <div className="landing-visual"><div className="landing-glow" /><div className="demo-qr-card">
+          <div className="demo-qr-top"><strong><span className="landing-mark mini">Q</span> QRevive</strong><span>● Dynamic</span></div>
+          <div className="demo-qr-pattern">{Array.from({ length: 121 }, (_, index) => <i key={index} className={(index % 7 === 0 || index % 11 === 0 || [0, 1, 2, 10, 11, 12, 108, 109, 110, 118, 119, 120].includes(index)) ? "on" : ""} />)}</div>
+          <div className="demo-qr-bottom"><strong>Your QR code is ready<small>Scan to see your destination</small></strong><b>✓</b></div>
+          <span className="demo-badge one">↻ &nbsp; Update anytime</span><span className="demo-badge two">✓ &nbsp; Never reprint</span>
+        </div></div>
+      </section>
+      <div className="landing-trust"><strong>ONE QR CODE. ENDLESS POSSIBILITIES.</strong><div><span>↗ Website links</span><span>▤ Text content</span><span>▧ Images</span><span>▣ PDF documents</span></div></div>
+      <section id="landing-features" className="landing-section"><div className="landing-heading"><label>WHY QREVIVE</label><h2>Your QR code stays.<br /><em>Your content evolves.</em></h2><p>Stop wasting time and money printing new QR codes. Keep your content fresh with one simple dashboard.</p></div><div className="landing-feature-grid">{landingFeatures.map(([icon, title, description]) => <article key={title}><b>{icon}</b><h3>{title}</h3><p>{description}</p><a href="#/register">Learn more →</a></article>)}</div></section>
+      <section id="landing-how" className="landing-section tinted"><div className="landing-heading"><label>SIMPLE BY DESIGN</label><h2>How It <em>Works</em></h2><p>Create and manage dynamic QR codes in just a few simple steps.</p></div><div className="landing-steps">{landingSteps.map(([number, title, description], index) => <article key={number}><strong>{number}</strong>{index < 4 && <i>→</i>}<h3>{title}</h3><p>{description}</p></article>)}</div></section>
+      <section id="landing-use-cases" className="landing-section"><div className="landing-heading"><label>BUILT FOR EVERY BUSINESS</label><h2>Use <em>Cases</em></h2><p>A simple solution for many real-world needs.</p></div><div className="landing-use-grid">{useCases.map(([icon, title, description]) => <article key={title}><b>{icon}</b><h3>{title}</h3><p>{description}</p></article>)}</div></section>
+      <section id="landing-pricing" className="landing-section tinted"><div className="landing-heading"><label>SIMPLE PRICING</label><h2>Simple, Flexible <em>Pricing</em></h2><p>Choose a plan that fits your needs.</p></div><div className="landing-pricing-grid"><Price title="Free" price="₹0" detail="Get started at no cost." features={["Up to 5 dynamic QR codes", "Link, Text, Image & PDF", "Basic analytics"]} /><Price title="Pro" price="₹299" detail="For growing businesses." popular features={["Up to 100 dynamic QR codes", "Unlimited updates", "Analytics & scan insights", "Email support"]} /><Price title="Business" price="₹799" detail="For teams and larger needs." features={["Up to 500 dynamic QR codes", "Team access", "Advanced analytics", "Priority support"]} /></div></section>
+      <section className="landing-cta"><div><h2>Create Your <em>Dynamic QR Code</em> Today</h2><p>Update content anytime and keep the same QR code forever.</p></div><a className="landing-button white" href="#/register">Get started free →</a></section>
+    </main>
+    <footer className="landing-footer"><a className="landing-logo" href="#/"><span className="landing-mark">Q</span> QRevive</a><p>Change the content, not the code.</p><div><a href="#landing-features">Features</a><a href="#landing-pricing">Pricing</a><a href="#/login">Login</a><a href="#/register">Get started</a></div><small>© {new Date().getFullYear()} QRevive. All rights reserved.</small></footer>
+  </div>;
+}
+
+function Price({ title, price, detail, features, popular }) {
+  return <article className={`landing-price ${popular ? "popular" : ""}`}>{popular && <span className="popular-label">Most Popular</span>}<h3>{title}</h3><p>{detail}</p><strong>{price}<small>/month</small></strong><ul>{features.map((feature) => <li key={feature}>✓ {feature}</li>)}</ul><a className="landing-button outline" href="#/register">{popular ? "Upgrade to Pro" : title === "Business" ? "Contact sales" : "Get started"}</a></article>;
+}
 
 async function api(path, { method = "GET", body, form, blob = false } = {}) {
   const headers = {};
@@ -171,6 +229,7 @@ function App() {
   const [, page, id] = hash.replace(/^#/, "").split("/");
   const loggedIn = Boolean(localStorage.getItem("token"));
   const logout = () => { localStorage.removeItem("token"); go("/login"); };
+  if ((!page || page === "") && !loggedIn) return <Landing />;
   if (page === "login") return <Auth />;
   if (page === "register") return <Auth register />;
   if (!loggedIn) { go("/login"); return null; }
