@@ -4,11 +4,11 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from config import SECRET_KEY, TOKEN_DAYS
-from db import get_db
+from catalyst_store import BUSINESSES, find_one
 
 _ITERATIONS = 200_000
 bearer = HTTPBearer(auto_error=False)
@@ -21,6 +21,8 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, stored: str) -> bool:
+    if not isinstance(stored, str):
+        return False
     try:
         salt_hex, digest_hex = stored.split("$")
         digest = hashlib.pbkdf2_hmac(
@@ -40,17 +42,17 @@ def create_token(business_id: int) -> str:
 
 
 def current_business(
-    creds: HTTPAuthorizationCredentials = Depends(bearer), db=Depends(get_db)
+    request: Request, creds: HTTPAuthorizationCredentials = Depends(bearer)
 ):
     """Returns the logged-in business row or raises 401."""
     if creds is None:
         raise HTTPException(401, "Log in to continue")
     try:
         payload = jwt.decode(creds.credentials, SECRET_KEY, algorithms=["HS256"])
-        business_id = int(payload["sub"])
+        business_id = str(payload["sub"])
     except (jwt.PyJWTError, KeyError, ValueError):
         raise HTTPException(401, "Session expired. Log in again")
-    row = db.execute("SELECT * FROM businesses WHERE id = ?", (business_id,)).fetchone()
+    row = find_one(request, BUSINESSES, lambda r: str(r.get("ROWID") or r.get("id")) == business_id)
     if row is None:
         raise HTTPException(401, "Account not found")
     return row

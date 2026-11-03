@@ -1,31 +1,33 @@
 # Architecture
 
 ```
-Customer phone ──scan QR──▶ GET /q/{slug}  ──▶ FastAPI renders that QR's public page (HTML)
+Customer phone ──scan QR──▶ GET /q/{slug}  ──▶ latest link redirect or current file
                                                      │
-Business owner ──▶ client (HTML/CSS/JS) ──▶ /api/*  ─┤──▶ SQLite (data.db)
-                                                     └──▶ uploads/ (images, PDFs)
+Business owner ──▶ React/Vite client ──▶ /api/*  ────┤──▶ Catalyst Data Store
+                                                     └──▶ Catalyst File Store (images, PDFs)
 ```
 
 ## Key idea
 Each QR code encodes `BASE_URL/q/{slug}`. The slug is generated once and never
 changes. A business can create many QR codes, each with its own content. The
-page behind each code is built from the database on every request, so edits
-appear immediately without reprinting.
+Each QR has exactly one destination. Link QR codes redirect directly, while
+image/PDF QR codes serve the current file. Updating that destination changes
+what customers receive without reprinting.
 
 ## Components
-- **client/**: static files served by FastAPI. `app.js` is a small single-page
-  app (hash routes: `#/login`, `#/register`, `#/dashboard`, `#/editor/:id`).
-  It only calls the JSON API.
+- **client/**: React/Vite source application. `npm run build` writes the
+  production bundle to `functions/api/client`, which FastAPI serves.
+  Hash routes include `#/login`, `#/register`, `#/dashboard`, and
+  `#/editor/:id`.
 - **functions/api/**: Python backend (FastAPI).
-  - `main.py` wires routers, `/uploads` and the client.
+  - `main.py` wires routers and the client.
   - `routes/auth.py` register and login (JWT).
   - `routes/business.py` profile, QR CRUD and QR PNG.
   - `routes/content.py` create, edit, replace file, delete.
-  - `routes/public.py` public page (`/q/{slug}`) and public JSON.
+  - `routes/public.py` direct QR destination responses (`/q/{slug}`).
   - `security.py` password hashing, tokens, auth dependency.
-  - `db.py`, `config.py` storage and settings.
-- **database/**: schema reference.
+  - `catalyst_store.py`, `config.py` Catalyst storage and settings.
+- **database/**: Catalyst Data Store schema reference.
 
 ## Security notes
 - Passwords: PBKDF2-SHA256 with a random salt.

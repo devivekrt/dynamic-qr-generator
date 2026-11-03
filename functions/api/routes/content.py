@@ -1,50 +1,31 @@
 import os
 import uuid
-from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, Query
 
-from config import MAX_UPLOAD_BYTES, UPLOAD_DIR
-from db import get_db
+from catalyst_store import CONTENTS, all_rows, delete, find_one, get_owned_content, get_owned_qr, insert, now, remove_file, update, upload_file
 from security import current_business
 
 router = APIRouter(prefix="/api/content", tags=["content"])
-
 TYPES = {"text", "link", "image", "pdf"}
-ALLOWED_EXT = {
-    "image": {".png", ".jpg", ".jpeg", ".webp", ".gif"},
-    "pdf": {".pdf"},
-}
+ALLOWED_EXT = {"image": {".png", ".jpg", ".jpeg", ".webp", ".gif"}, "pdf": {".pdf"}}
 
 
-def now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def serialize(row) -> dict:
-    d = dict(row)
-    d["file_url"] = f"/uploads/{d['file_name']}" if d.get("file_name") else None
-    return d
-
-
-def get_owned(db, content_id: int, business_id: int):
-    row = db.execute(
-        "SELECT * FROM contents WHERE id = ? AND business_id = ?", (content_id, business_id)
-    ).fetchone()
+def serialize(row: Optional[dict]) -> Optional[dict]:
     if row is None:
-        raise HTTPException(404, "Content not found")
-    return row
-
-
-def get_qr(db, qr_code_id: int, business_id: int):
-    row = db.execute(
-        "SELECT * FROM qr_codes WHERE id = ? AND business_id = ?",
-        (qr_code_id, business_id),
-    ).fetchone()
-    if row is None:
-        raise HTTPException(404, "QR code not found")
-    return row
+        return None
+    return {
+        "id": row.get("ROWID"),
+        "qr_code_id": row.get("QR_CODE_ID"),
+        "type": row.get("TYPE"),
+        "text_value": row.get("TEXT_VALUE"),
+        "url_value": row.get("URL_VALUE"),
+        "file_name": row.get("FILE_NAME"),
+        "file_id": row.get("FILE_ID"),
+        "original_name": row.get("FILE_NAME"),
+        "file_url": f"/files/{row['FILE_ID']}" if row.get("FILE_ID") else None,
+    }
 
 
 def clean_url(value: Optional[str]) -> str:
@@ -54,145 +35,107 @@ def clean_url(value: Optional[str]) -> str:
     return value
 
 
-def save_upload(file: UploadFile, ctype: str):
-    """Validates and stores the file. Returns (stored_name, original_name)."""
+async def upload_value(request: Request, file: UploadFile, ctype: str):
     original = os.path.basename(file.filename or "")
     ext = os.path.splitext(original)[1].lower()
-    if ext not in ALLOWED_EXT.get(ctype, set()):
-        allowed = ", ".join(sorted(ALLOWED_EXT[ctype]))
-        raise HTTPException(422, f"This content type accepts only: {allowed}")
-    data = file.file.read(MAX_UPLOAD_BYTES + 1)
-    if len(data) > MAX_UPLOAD_BYTES:
-        raise HTTPException(413, f"File is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
-    stored = f"{uuid.uuid4().hex}{ext}"
-    with open(os.path.join(UPLOAD_DIR, stored), "wb") as fh:
-        fh.write(data)
-    return stored, original
-
-
-def remove_file(stored_name: Optional[str]) -> None:
-    if not stored_name:
-        return
-    try:
-        os.remove(os.path.join(UPLOAD_DIR, stored_name))
-    except OSError:
-        pass
-
-
-def has_file(file: Optional[UploadFile]) -> bool:
-    return file is not None and bool(file.filename)
+    if ext not in ALLOWED_EXT[ctype]:
+        raise HTTPException(422, f"This content type accepts only: {', '.join(sorted(ALLOWED_EXT[ctype]))}")
+    data = await file.read()
+    if len(data) > int(os.getenv("MAX_UPLOAD_MB", "10")) * 1024 * 1024:
+        raise HTTPException(413, "File is too large")
+    return upload_file(request, f"{uuid.uuid4().hex}{ext}", data), original
 
 
 @router.get("")
-def list_content(qr_code_id: int = Query(...), biz=Depends(current_business), db=Depends(get_db)):
-    get_qr(db, qr_code_id, biz["id"])
-    rows = db.execute(
-        "SELECT * FROM contents WHERE business_id = ? AND qr_code_id = ? ORDER BY id DESC",
-        (biz["id"], qr_code_id),
-    ).fetchall()
-    return [serialize(r) for r in rows]
+def list_content(request: Request, qr_code_id: str = Query(...), biz=Depends(current_business)):
+    get_owned_qr(request, qr_code_id, str(biz.get("ROWID")))
+    row = find_one(request, CONTENTS, lambda r: str(r.get("QR_CODE_ID")) == qr_code_id)
+    return serialize(row)
 
 
 @router.get("/{content_id}")
-def get_content(content_id: int, biz=Depends(current_business), db=Depends(get_db)):
-    return serialize(get_owned(db, content_id, biz["id"]))
+def get_content(content_id: str, request: Request, biz=Depends(current_business)):
+    return serialize(get_owned_content(request, content_id, str(biz.get("ROWID"))))
 
 
 @router.post("", status_code=201)
-def create_content(
-    title: str = Form(..., min_length=1, max_length=120),
-    type: str = Form(...),
-    text_value: Optional[str] = Form(None),
-    url_value: Optional[str] = Form(None),
-    file: Optional[UploadFile] = File(None),
-    qr_code_id: int = Form(...),
+async def create_content(
+    request: Request, type: str = Form(...),
+    text_value: Optional[str] = Form(None), url_value: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None), qr_code_id: str = Form(...),
     biz=Depends(current_business),
-    db=Depends(get_db),
 ):
-    get_qr(db, qr_code_id, biz["id"])
+    get_owned_qr(request, qr_code_id, str(biz.get("ROWID")))
+    if find_one(request, CONTENTS, lambda r: str(r.get("QR_CODE_ID")) == qr_code_id):
+        raise HTTPException(409, "This QR code already has content. Edit it instead.")
     if type not in TYPES:
         raise HTTPException(422, "Choose a content type")
-    text, url, stored, original = None, None, None, None
-
+    values = {"QR_CODE_ID": qr_code_id, "TYPE": type}
     if type == "text":
-        text = (text_value or "").strip()
-        if not text:
+        values["TEXT_VALUE"] = (text_value or "").strip()
+        if not values["TEXT_VALUE"]:
             raise HTTPException(422, "Enter the text to show")
     elif type == "link":
-        url = clean_url(url_value)
+        values["URL_VALUE"] = clean_url(url_value)
     else:
-        if not has_file(file):
+        if file is None or not file.filename:
             raise HTTPException(422, "Choose a file to upload")
-        stored, original = save_upload(file, type)
-
-    cur = db.execute(
-        "INSERT INTO contents (business_id, qr_code_id, title, type, text_value, url_value, "
-        "file_name, original_name, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-        (biz["id"], qr_code_id, title.strip(), type, text, url, stored, original, now(), now()),
-    )
-    db.commit()
-    return serialize(get_owned(db, cur.lastrowid, biz["id"]))
+        values["FILE_ID"], values["FILE_NAME"] = await upload_value(request, file, type)
+    return serialize(insert(request, CONTENTS, values))
 
 
 @router.put("/{content_id}")
-def update_content(
-    content_id: int,
-    title: str = Form(..., min_length=1, max_length=120),
-    text_value: Optional[str] = Form(None),
-    url_value: Optional[str] = Form(None),
-    file: Optional[UploadFile] = File(None),
-    biz=Depends(current_business),
-    db=Depends(get_db),
+async def update_content(
+    content_id: str, request: Request,
+    type: str = Form(...),
+    text_value: Optional[str] = Form(None), url_value: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None), biz=Depends(current_business),
 ):
-    row = get_owned(db, content_id, biz["id"])
-    ctype = row["type"]
-    text, url = row["text_value"], row["url_value"]
-    stored, original = row["file_name"], row["original_name"]
-    old_file = None
-
-    if ctype == "text":
-        text = (text_value or "").strip()
-        if not text:
+    row = get_owned_content(request, content_id, str(biz.get("ROWID")))
+    if type not in TYPES:
+        raise HTTPException(422, "Choose a content type")
+    values = dict(row)
+    old_file_id = row.get("FILE_ID")
+    values["TYPE"] = type
+    values["TEXT_VALUE"] = None
+    values["URL_VALUE"] = None
+    values["FILE_ID"] = None
+    values["FILE_NAME"] = None
+    if type == "text":
+        values["TEXT_VALUE"] = (text_value or "").strip()
+        if not values["TEXT_VALUE"]:
             raise HTTPException(422, "Enter the text to show")
-    elif ctype == "link":
-        url = clean_url(url_value)
-    elif has_file(file):
-        old_file = stored
-        stored, original = save_upload(file, ctype)
-
-    db.execute(
-        "UPDATE contents SET title=?, text_value=?, url_value=?, file_name=?, "
-        "original_name=?, updated_at=? WHERE id=?",
-        (title.strip(), text, url, stored, original, now(), content_id),
-    )
-    db.commit()
-    remove_file(old_file)
-    return serialize(get_owned(db, content_id, biz["id"]))
+    elif type == "link":
+        values["URL_VALUE"] = clean_url(url_value)
+    else:
+        if file is None or not file.filename:
+            if row["TYPE"] == type and old_file_id:
+                values["FILE_ID"] = old_file_id
+                values["FILE_NAME"] = row.get("FILE_NAME")
+            else:
+                raise HTTPException(422, "Choose a file to upload")
+        else:
+            new_id, original = await upload_value(request, file, type)
+            values["FILE_ID"], values["FILE_NAME"] = new_id, original
+    updated = update(request, CONTENTS, values)
+    if old_file_id and values.get("FILE_ID") != old_file_id:
+        remove_file(request, old_file_id)
+    return serialize(updated)
 
 
 @router.put("/{content_id}/file")
-def replace_file(
-    content_id: int,
-    file: UploadFile = File(...),
-    biz=Depends(current_business),
-    db=Depends(get_db),
-):
-    row = get_owned(db, content_id, biz["id"])
-    if row["type"] not in ALLOWED_EXT:
+async def replace_file(content_id: str, request: Request, file: UploadFile = File(...), biz=Depends(current_business)):
+    row = get_owned_content(request, content_id, str(biz.get("ROWID")))
+    if row["TYPE"] not in ALLOWED_EXT:
         raise HTTPException(400, "Only image and PDF content has a file")
-    stored, original = save_upload(file, row["type"])
-    db.execute(
-        "UPDATE contents SET file_name=?, original_name=?, updated_at=? WHERE id=?",
-        (stored, original, now(), content_id),
-    )
-    db.commit()
-    remove_file(row["file_name"])
-    return serialize(get_owned(db, content_id, biz["id"]))
+    new_id, original = await upload_value(request, file, row["TYPE"])
+    updated = update(request, CONTENTS, {**row, "FILE_ID": new_id, "FILE_NAME": original})
+    remove_file(request, row.get("FILE_ID"))
+    return serialize(updated)
 
 
 @router.delete("/{content_id}", status_code=204)
-def delete_content(content_id: int, biz=Depends(current_business), db=Depends(get_db)):
-    row = get_owned(db, content_id, biz["id"])
-    db.execute("DELETE FROM contents WHERE id = ?", (content_id,))
-    db.commit()
-    remove_file(row["file_name"])
+def delete_content(content_id: str, request: Request, biz=Depends(current_business)):
+    row = get_owned_content(request, content_id, str(biz.get("ROWID")))
+    delete(request, CONTENTS, content_id)
+    remove_file(request, row.get("FILE_ID"))

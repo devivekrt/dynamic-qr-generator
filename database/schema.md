@@ -1,37 +1,41 @@
-# Database schema (SQLite)
+# Dynamic QR Code Generator — Catalyst Data Store schema
 
-The tables are created automatically on startup by `functions/api/db.py`.
+The backend uses the exact uppercase column names below.
 
-## businesses
-| Column | Type | Notes |
-|---|---|---|
-| id | INTEGER PK | |
-| name | TEXT | Business name shown on the public page |
-| email | TEXT UNIQUE | Stored lower-case |
-| password_hash | TEXT | PBKDF2-SHA256, `salt$hash` |
-| slug | TEXT UNIQUE | Permanent public id, e.g. `blue-cafe-3fa9` |
-| created_at | TEXT | ISO 8601 UTC |
+## Businesses
 
-## contents
-| Column | Type | Notes |
-|---|---|---|
-| id | INTEGER PK | |
-| business_id | INTEGER FK | `ON DELETE CASCADE` |
-| title | TEXT | |
-| type | TEXT | `text`, `link`, `image`, `pdf` |
-| text_value | TEXT | Used by `text` |
-| url_value | TEXT | Used by `link` (http/https only) |
-| file_name | TEXT | Stored name in `uploads/` (image, pdf) |
-| original_name | TEXT | Name the owner uploaded |
-| created_at / updated_at | TEXT | ISO 8601 UTC |
+| Column | Type |
+|---|---|
+| `EMAIL` | text |
+| `CREATED_AT` | text |
+| `BUSINESS_NAME` | varchar |
+| `PASSWORD_HASH` | text (not encrypted; stores the PBKDF2 hash only) |
+| `SLUG` | varchar |
 
-## qr_codes
-| Column | Type | Notes |
-|---|---|---|
-| id | INTEGER PK | |
-| business_id | INTEGER FK | `ON DELETE CASCADE` |
-| name | TEXT | Owner-facing QR name |
-| slug | TEXT UNIQUE | Permanent public id used by the printed QR |
-| created_at | TEXT | ISO 8601 UTC |
+Catalyst system columns such as `ROWID`, `CREATORID`, `CREATEDTIME`, and
+`MODIFIEDTIME` are generated automatically.
 
-Each content item belongs to one `qr_codes.id` through `contents.qr_code_id`.
+## QrCodes
+
+| Column | Type |
+|---|---|
+| `BUSINESS_ID` | foreign key to Businesses |
+| `QR_NAME` | varchar |
+| `SLUG` | varchar |
+
+## Contents
+
+Each QR code has one destination record.
+
+| Column | Type |
+|---|---|
+| `QR_CODE_ID` | foreign key to QrCodes |
+| `TYPE` | varchar |
+| `TEXT_VALUE` | text |
+| `URL_VALUE` | varchar |
+| `FILE_NAME` | varchar |
+| `FILE_ID` | varchar |
+
+For `TYPE=link`, `URL_VALUE` is used. For `TYPE=image` or `TYPE=pdf`,
+`FILE_ID` and `FILE_NAME` identify the Catalyst File Store object. For
+`TYPE=text`, `TEXT_VALUE` is used.
