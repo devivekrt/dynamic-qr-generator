@@ -5,7 +5,7 @@ The backend uses the exact uppercase column names below.
 For the production design and plan features, add the new nullable columns to the
 existing Catalyst tables before deploying the updated AppSail service. Existing
 businesses without `PLAN` are treated as Free accounts, and existing QR codes
-without design values use the default basic design.
+without design values use the default classic design.
 
 ## Businesses
 

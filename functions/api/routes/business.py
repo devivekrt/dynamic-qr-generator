@@ -15,7 +15,7 @@ from security import current_business
 router = APIRouter(prefix="/api/business", tags=["business"])
 COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 DEFAULT_DESIGN = {
-    "DESIGN_TEMPLATE": "basic",
+    "DESIGN_TEMPLATE": "classic",
     "FOREGROUND_COLOR": "#111827",
     "BACKGROUND_COLOR": "#FFFFFF",
     "EYE_STYLE": "square",
@@ -68,7 +68,7 @@ def qr_image(request: Request, row: dict) -> Image.Image:
     background = design["BACKGROUND_COLOR"]
     image = Image.new("RGB", (size, size), background)
     draw = ImageDraw.Draw(image)
-    rounded = design["DESIGN_TEMPLATE"] in {"prime-rounded", "business-rounded", "business-gradient"}
+    template = design["DESIGN_TEMPLATE"]
     for row_index, values in enumerate(matrix):
         for column_index, enabled in enumerate(values):
             if not enabled:
@@ -76,8 +76,15 @@ def qr_image(request: Request, row: dict) -> Image.Image:
             x = (column_index + quiet) * module
             y = (row_index + quiet) * module
             box = (x, y, x + module - 1, y + module - 1)
-            if rounded:
+            if template in {"rounded", "gradient", "fluid"}:
                 draw.rounded_rectangle(box, radius=module // 3, fill=foreground)
+            elif template == "dotted":
+                draw.ellipse(box, fill=foreground)
+            elif template == "star":
+                draw.regular_polygon((x + module // 2, y + module // 2, module // 2), 5, rotation=0, fill=foreground)
+            elif template == "heart":
+                draw.ellipse((x, y + module // 4, x + module // 2, y + module - 1), fill=foreground)
+                draw.ellipse((x + module // 2 - 1, y + module // 4, x + module - 1, y + module - 1), fill=foreground)
             else:
                 draw.rectangle(box, fill=foreground)
     finder_offset = quiet * module
@@ -170,7 +177,7 @@ def create_qr_code(data: dict, request: Request, biz=Depends(current_business)):
 async def update_design(
     qr_id: str,
     request: Request,
-    template: str = Form("basic"),
+    template: str = Form("classic"),
     foreground_color: str = Form("#111827"),
     background_color: str = Form("#FFFFFF"),
     eye_style: str = Form("square"),
@@ -204,10 +211,46 @@ async def update_design(
             raise HTTPException(422, "Logo must be a PNG, JPEG, or WebP image")
         values["LOGO_FILE_ID"] = upload_file(request, f"qr-logo-{row_id(row)}", data)
         values["LOGO_FILE_NAME"] = logo.filename
-    updated = update(request, QR_CODES, values)
+    try:
+        updated = update(request, QR_CODES, {
+            "ROWID": row_id(row),
+            "DESIGN_TEMPLATE": template,
+            "FOREGROUND_COLOR": foreground_color,
+            "BACKGROUND_COLOR": background_color,
+            "EYE_STYLE": eye_style,
+            "FRAME_STYLE": frame_style,
+            **({"LOGO_FILE_ID": values["LOGO_FILE_ID"], "LOGO_FILE_NAME": values["LOGO_FILE_NAME"]} if "LOGO_FILE_ID" in values else {}),
+        })
+    except Exception as exc:
+        raise HTTPException(500, "Design could not be saved. Verify the QR design columns are present in Catalyst.") from exc
     if old_logo and values.get("LOGO_FILE_ID") != old_logo:
         remove_file(request, old_logo)
-    return serialize_qr(request, updated or values)
+    return serialize_qr(request, {**row, **values, **(updated or {})})
+
+
+@router.post("/qr-codes/{qr_id}/design/preview")
+async def preview_design(
+    qr_id: str,
+    request: Request,
+    template: str = Form("classic"),
+    foreground_color: str = Form("#111827"),
+    background_color: str = Form("#FFFFFF"),
+    eye_style: str = Form("square"),
+    frame_style: str = Form("none"),
+    biz=Depends(current_business),
+):
+    row = get_owned_qr(request, qr_id, str(biz.get("ROWID")))
+    require_template(biz, template)
+    if eye_style not in {"square", "rounded"} or frame_style not in {"none", "label"}:
+        raise HTTPException(422, "Choose a supported QR style")
+    foreground_color = validate_color(foreground_color, "Foreground color")
+    background_color = validate_color(background_color, "Background color")
+    preview_row = {**row, "DESIGN_TEMPLATE": template, "FOREGROUND_COLOR": foreground_color,
+                   "BACKGROUND_COLOR": background_color, "EYE_STYLE": eye_style, "FRAME_STYLE": frame_style}
+    image = qr_image(request, preview_row)
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return Response(output.getvalue(), media_type="image/png")
 
 
 @router.delete("/qr-codes/{qr_id}", status_code=204)

@@ -4,15 +4,16 @@ import "./styles.css";
 
 const TYPES = { text: "Text", link: "Link", image: "Image", pdf: "PDF" };
 const DESIGN_LABELS = {
-  basic: "Basic square",
-  "basic-soft": "Basic soft",
-  "basic-contrast": "Basic contrast",
-  "prime-rounded": "Prime rounded",
-  "prime-dots": "Prime dots",
-  "prime-frame": "Prime frame",
-  "business-rounded": "Business rounded",
-  "business-gradient": "Business gradient",
-  "business-frame": "Business frame",
+  classic: "1 · Classic",
+  rounded: "2 · Rounded corners",
+  dotted: "3 · Dotted",
+  modern: "4 · Modern angular",
+  gradient: "5 · Gradient color",
+  logo: "6 · Logo ready",
+  star: "7 · Star",
+  heart: "8 · Heart",
+  fluid: "9 · Fluid",
+  branded: "10 · Branded frame",
 };
 const landingFeatures = [
   ["↗", "Dynamic links", "Change your destination URL whenever you need. Your printed QR code stays the same."],
@@ -125,6 +126,7 @@ function Layout({ children, onLogout }) {
   return <div className="app-shell"><header className="topbar">
     <a className="brand" href="/dashboard"><span className="brand-mark">▦</span> QRevive</a>
     <span className="brand-tagline">Change the content, not the code.</span>
+    <a className="topbar-link" href="/profile">Profile</a><a className="topbar-link" href="/upgrade">Upgrade</a>
     <button className="button ghost" onClick={onLogout}>Log out</button>
   </header>{children}</div>;
 }
@@ -180,13 +182,31 @@ function Auth({ register = false }) {
 }
 
 function DesignPanel({ code, business, onSaved, onCancel }) {
-  const [template, setTemplate] = useState(code.design?.DESIGN_TEMPLATE || "basic");
+  const [template, setTemplate] = useState(code.design?.DESIGN_TEMPLATE || "classic");
   const [foreground, setForeground] = useState(code.design?.FOREGROUND_COLOR || "#111827");
   const [background, setBackground] = useState(code.design?.BACKGROUND_COLOR || "#FFFFFF");
   const [eyeStyle, setEyeStyle] = useState(code.design?.EYE_STYLE || "square");
   const [frameStyle, setFrameStyle] = useState(code.design?.FRAME_STYLE || "none");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [preview, setPreview] = useState(code.image || "");
+  useEffect(() => {
+    let active = true;
+    const timer = setTimeout(async () => {
+      try {
+        const form = new FormData();
+        form.append("template", template);
+        form.append("foreground_color", foreground);
+        form.append("background_color", background);
+        form.append("eye_style", eyeStyle);
+        form.append("frame_style", frameStyle);
+        const image = URL.createObjectURL(await api(`/business/qr-codes/${code.id}/design/preview`, { method: "POST", form, blob: true }));
+        if (active) setPreview((old) => { if (old.startsWith("blob:")) URL.revokeObjectURL(old); return image; });
+        else URL.revokeObjectURL(image);
+      } catch {}
+    }, 180);
+    return () => { active = false; clearTimeout(timer); };
+  }, [template, foreground, background, eyeStyle, frameStyle, code.id]);
   const save = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -202,7 +222,8 @@ function DesignPanel({ code, business, onSaved, onCancel }) {
   };
   return <form className="design-panel" onSubmit={save}>
     <div className="design-panel-heading"><strong>Design QR code</strong><button type="button" className="text-button" onClick={onCancel}>Close</button></div>
-    <label className="field"><span>Template</span><select name="template" value={template} onChange={(event) => setTemplate(event.target.value)}>{(business?.design_templates || ["basic"]).map((value) => <option key={value} value={value}>{DESIGN_LABELS[value] || value}</option>)}</select></label>
+    <div className="design-preview"><img src={preview} alt="Live QR preview" /><span>Live preview</span></div>
+    <label className="field"><span>Template</span><select name="template" value={template} onChange={(event) => setTemplate(event.target.value)}>{(business?.design_templates || ["classic"]).map((value) => <option key={value} value={value}>{DESIGN_LABELS[value] || value}</option>)}</select></label>
     <div className="design-colors">
       <label className="field"><span>Foreground</span><input name="foreground_color" type="color" value={foreground} disabled={!business?.allow_custom_colors} onChange={(event) => setForeground(event.target.value)} /></label>
       <label className="field"><span>Background</span><input name="background_color" type="color" value={background} disabled={!business?.allow_custom_colors} onChange={(event) => setBackground(event.target.value)} /></label>
@@ -321,6 +342,23 @@ function Editor({ id, onLogout }) {
   </form></main></Layout>;
 }
 
+function Profile({ onLogout }) {
+  const [business, setBusiness] = useState(null);
+  useEffect(() => { api("/business/me").then(setBusiness).catch(() => go("/login")); }, []);
+  if (!business) return <Layout onLogout={onLogout}><main className="dashboard"><div className="empty-state">Loading profile…</div></main></Layout>;
+  return <Layout onLogout={onLogout}><main className="dashboard"><span className="eyebrow">ACCOUNT</span><h1>Profile</h1><section className="profile-card"><h2>{business.name}</h2><p className="muted">{business.email}</p><p><strong>{business.plan_label}</strong> plan · {business.qr_limit} QR codes</p><p className="muted">Patterns: {business.design_templates.length}. Custom colors: {business.allow_custom_colors ? "Yes" : "No"} · Logo: {business.allow_logo ? "Yes" : "No"}</p><a className="button primary" href="/upgrade">View upgrade options</a></section></main></Layout>;
+}
+
+function Upgrade({ onLogout }) {
+  const plans = [
+    ["Free", "₹0/month", "5 QR codes · patterns 1–3"],
+    ["Prime", "₹299/month", "50 QR codes · patterns 1–6 · custom colors"],
+    ["Business", "₹799/month", "250 QR codes · patterns 1–10 · logos"],
+    ["Custom Enterprise", "Custom", "Custom limits and branded designs"],
+  ];
+  return <Layout onLogout={onLogout}><main className="dashboard"><span className="eyebrow">PLANS</span><h1>Upgrade your workspace</h1><p className="muted">Contact support to activate a paid plan.</p><div className="upgrade-grid">{plans.map(([name, price, detail]) => <section className="profile-card" key={name}><h2>{name}</h2><strong>{price}</strong><p className="muted">{detail}</p><a className="button primary" href="mailto:support@qrevive.app?subject=QRevive%20upgrade">Contact support</a></section>)}</div></main></Layout>;
+}
+
 function App() {
   const path = usePath();
   const [, page, id] = path.split(/[/?]/);
@@ -331,6 +369,8 @@ function App() {
   if (page === "login") return <Auth />;
   if (page === "register") return <Auth register />;
   if (!loggedIn) { go("/login"); return null; }
+  if (page === "profile") return <Profile onLogout={logout} />;
+  if (page === "upgrade") return <Upgrade onLogout={logout} />;
   if (page === "editor" && id) return <Editor id={id} onLogout={logout} />;
   return <Dashboard onLogout={logout} />;
 }
