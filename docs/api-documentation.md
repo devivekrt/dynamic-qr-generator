@@ -16,7 +16,12 @@ Owner endpoints use `Authorization: Bearer <token>`.
 | GET | `/api/business/qr-codes` | List owned QR codes |
 | POST | `/api/business/qr-codes` | JSON `{name}` |
 | GET | `/api/business/qr-codes/{id}/image` | QR PNG |
+| PUT | `/api/business/qr-codes/{id}/design` | Multipart design settings and optional logo |
 | DELETE | `/api/business/qr-codes/{id}` | Deletes QR and its destination |
+
+`GET /api/business/me` also returns the current plan, QR limit, available design
+templates, and whether custom colors or logos are allowed. The backend enforces
+these permissions; frontend controls are only a convenience.
 
 ## Content
 Each QR code has one content record.

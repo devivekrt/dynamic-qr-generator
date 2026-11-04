@@ -27,6 +27,9 @@ The application is hosted with [Zoho Catalyst](https://www.zoho.com/catalyst/).
 - Text QR codes display the current text.
 - Image and PDF QR codes open the current file.
 - Updating the destination does not change the QR code.
+- QR designs are plan-controlled: Free accounts can use basic patterns, Prime
+  accounts can use designed templates and custom colors, and Business accounts
+  can use advanced templates and logos.
 
 ## Developer information
 

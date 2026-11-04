@@ -46,6 +46,15 @@ input:focus, select:focus, textarea:focus { border-color: #5b5ce2; box-shadow: 0
 .card-actions { justify-content: stretch; }
 .card-actions .button { flex: 1; }
 .qr-delete-button { display: block; margin: 16px auto 0; }
+.design-button { display: block; margin: 12px auto 0; }
+.design-panel { margin-top: 18px; padding-top: 18px; border-top: 1px solid #e2e8f0; }
+.design-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.design-panel .field { margin-top: 14px; }
+.design-panel input[type="color"] { height: 42px; padding: 4px; cursor: pointer; }
+.design-panel input[type="color"]:disabled { cursor: not-allowed; opacity: .5; }
+.design-colors { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.design-note { margin: 10px 0 0; color: #64748b; font-size: 12px; line-height: 1.5; }
+.plan-meter { margin: 10px 0 0; color: #5b5ce2; font-size: 13px; font-weight: 750; }
 .content-row { justify-content: start; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
 .content-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
 .type-icon { display: grid; place-items: center; width: 38px; height: 32px; color: #5b5ce2; background: #eeeeff; border-radius: 8px; font-size: 10px; font-weight: 900; }

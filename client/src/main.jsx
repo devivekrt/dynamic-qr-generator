@@ -3,6 +3,17 @@ import { createRoot } from "react-dom/client";
 import "./styles.css";
 
 const TYPES = { text: "Text", link: "Link", image: "Image", pdf: "PDF" };
+const DESIGN_LABELS = {
+  basic: "Basic square",
+  "basic-soft": "Basic soft",
+  "basic-contrast": "Basic contrast",
+  "prime-rounded": "Prime rounded",
+  "prime-dots": "Prime dots",
+  "prime-frame": "Prime frame",
+  "business-rounded": "Business rounded",
+  "business-gradient": "Business gradient",
+  "business-frame": "Business frame",
+};
 const landingFeatures = [
   ["↗", "Dynamic links", "Change your destination URL whenever you need. Your printed QR code stays the same."],
   ["▤", "Editable text", "Share announcements, instructions, and information that you can update anytime."],
@@ -168,16 +179,57 @@ function Auth({ register = false }) {
   </form></main>;
 }
 
-function QrCard({ code, onDelete, onDeleteQr, onReplaceFile }) {
+function DesignPanel({ code, business, onSaved, onCancel }) {
+  const [template, setTemplate] = useState(code.design?.DESIGN_TEMPLATE || "basic");
+  const [foreground, setForeground] = useState(code.design?.FOREGROUND_COLOR || "#111827");
+  const [background, setBackground] = useState(code.design?.BACKGROUND_COLOR || "#FFFFFF");
+  const [eyeStyle, setEyeStyle] = useState(code.design?.EYE_STYLE || "square");
+  const [frameStyle, setFrameStyle] = useState(code.design?.FRAME_STYLE || "none");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const save = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await api(`/business/qr-codes/${code.id}/design`, { method: "PUT", form: new FormData(event.currentTarget) });
+      await onSaved();
+    } catch (exception) {
+      setError(exception.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return <form className="design-panel" onSubmit={save}>
+    <div className="design-panel-heading"><strong>Design QR code</strong><button type="button" className="text-button" onClick={onCancel}>Close</button></div>
+    <label className="field"><span>Template</span><select name="template" value={template} onChange={(event) => setTemplate(event.target.value)}>{(business?.design_templates || ["basic"]).map((value) => <option key={value} value={value}>{DESIGN_LABELS[value] || value}</option>)}</select></label>
+    <div className="design-colors">
+      <label className="field"><span>Foreground</span><input name="foreground_color" type="color" value={foreground} disabled={!business?.allow_custom_colors} onChange={(event) => setForeground(event.target.value)} /></label>
+      <label className="field"><span>Background</span><input name="background_color" type="color" value={background} disabled={!business?.allow_custom_colors} onChange={(event) => setBackground(event.target.value)} /></label>
+    </div>
+    <label className="field"><span>Corner style</span><select name="eye_style" value={eyeStyle} onChange={(event) => setEyeStyle(event.target.value)}><option value="square">Square</option><option value="rounded">Rounded</option></select></label>
+    <label className="field"><span>Frame</span><select name="frame_style" value={frameStyle} onChange={(event) => setFrameStyle(event.target.value)}><option value="none">None</option><option value="label">Border frame</option></select></label>
+    <label className="field"><span>Logo {business?.allow_logo ? "(optional)" : "(Business plan)"}</span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp" disabled={!business?.allow_logo} /></label>
+    {!business?.allow_custom_colors && <p className="design-note">Upgrade to Prime to unlock custom colors.</p>}
+    {!business?.allow_logo && <p className="design-note">Upgrade to Business to add a logo.</p>}
+    {error && <p className="error">{error}</p>}
+    <button className="button primary wide" type="submit" disabled={saving}>{saving ? "Saving design…" : "Save design"}</button>
+  </form>;
+}
+
+function QrCard({ code, business, onDelete, onDeleteQr, onReplaceFile, onDesignSaved }) {
   const content = code.content;
   const action = content ? `/editor/${content.id}` : `/editor/new?qr=${code.id}`;
   const fileInputId = `replace-${code.id}`;
+  const [designing, setDesigning] = useState(false);
   return <article className="qr-card">
     <div className="card-heading"><div><h2>{code.name}</h2><span className="badge">{content ? TYPES[content.type] : "No destination"}</span></div>
       <button className="icon-button" title="Download QR" onClick={() => { const link = document.createElement("a"); link.href = code.image; link.download = `qr-${code.slug}.png`; link.click(); }}>↓</button>
     </div>
     <img className="qr-image" src={code.image} alt={`QR code for ${code.name}`} /><p className="url">{code.public_url}</p>
     <div className="card-actions"><a className="button ghost" href={code.public_url} target="_blank" rel="noreferrer">View</a><a className="button primary destination-button" href={action}>{content ? "Update destination" : "Set destination"}</a></div>
+    <button className="text-button design-button" onClick={() => setDesigning((value) => !value)}>{designing ? "Close design" : "Design QR"}</button>
+    {designing && <DesignPanel code={code} business={business} onCancel={() => setDesigning(false)} onSaved={async () => { setDesigning(false); await onDesignSaved(); }} />}
     <button className="text-button danger-text qr-delete-button" onClick={() => onDeleteQr(code.id, code.name)}>Delete QR code</button>
     {content ? <div className="content-row"><span className="type-icon">{content.type.toUpperCase()}</span><strong>{TYPES[content.type]}</strong>
       <div className="content-actions">
@@ -195,11 +247,13 @@ function QrCard({ code, onDelete, onDeleteQr, onReplaceFile }) {
 
 function Dashboard({ onLogout }) {
   const [codes, setCodes] = useState([]);
+  const [business, setBusiness] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const load = async () => {
     try {
-      const result = await api("/business/qr-codes");
+      const [profile, result] = await Promise.all([api("/business/me"), api("/business/qr-codes")]);
+      setBusiness(profile);
       const withContent = await Promise.all(result.map(async (code) => ({
         ...code,
         content: await api(`/content?qr_code_id=${code.id}`),
@@ -233,13 +287,14 @@ function Dashboard({ onLogout }) {
     try { await api(`/content/${id}/file`, { method: "PUT", form }); setLoading(true); await load(); }
     catch (exception) { setError(exception.message); }
   };
+  const reload = async () => { setLoading(true); await load(); };
   return <Layout onLogout={onLogout}><main className="dashboard">
-    <section className="hero"><div><span className="eyebrow">WORKSPACE</span><h1>Your QR codes</h1><p className="muted">Print once. Update the destination whenever your business changes.</p></div>
+    <section className="hero"><div><span className="eyebrow">WORKSPACE · {business?.plan_label || "Free"} PLAN</span><h1>Your QR codes</h1><p className="muted">Print once. Update the destination whenever your business changes.</p>{business && <p className="plan-meter">{codes.length} of {business.qr_limit} QR codes used</p>}</div>
       <form className="create-form" onSubmit={create}><input name="name" placeholder="QR name, e.g. Table 1" required maxLength="120" /><button className="button primary">Create QR</button></form>
     </section>
     {error && <p className="error banner">{error}</p>}
     {loading ? <div className="empty-state">Loading your QR codes…</div> : codes.length === 0 ? <div className="empty-state"><h2>Create your first QR code</h2><p>Each code gets a permanent address that you can update later.</p></div> :
-      <section className="qr-grid">{codes.map((code) => <QrCard key={code.id} code={code} onDelete={removeContent} onDeleteQr={removeQr} onReplaceFile={replaceFile} />)}</section>}
+      <section className="qr-grid">{codes.map((code) => <QrCard key={code.id} code={code} business={business} onDelete={removeContent} onDeleteQr={removeQr} onReplaceFile={replaceFile} onDesignSaved={reload} />)}</section>}
   </main></Layout>;
 }
 
