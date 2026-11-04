@@ -57,7 +57,9 @@ def draw_finder(draw: ImageDraw.ImageDraw, x: int, y: int, size: int, color: str
 
 def qr_image(request: Request, row: dict) -> Image.Image:
     design = design_for(row)
-    qr = qrcode.QRCode(version=None, error_correction=ERROR_CORRECT_H, box_size=10, border=4)
+    # The quiet zone is added below so the custom finder patterns align with
+    # the matrix instead of being drawn a second time at a shifted position.
+    qr = qrcode.QRCode(version=None, error_correction=ERROR_CORRECT_H, box_size=10, border=0)
     qr.add_data(public_url(request, row["SLUG"]))
     qr.make(fit=True)
     matrix = qr.get_matrix()
