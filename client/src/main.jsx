@@ -212,7 +212,9 @@ function Dashboard({ onLogout }) {
   useEffect(() => { load(); }, []);
   const create = async (event) => {
     event.preventDefault();
-    try { await api("/business/qr-codes", { method: "POST", body: { name: new FormData(event.currentTarget).get("name") } }); event.currentTarget.reset(); setLoading(true); await load(); }
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    try { await api("/business/qr-codes", { method: "POST", body: { name: form.get("name") } }); formElement.reset(); setLoading(true); await load(); }
     catch (exception) { setError(exception.message); }
   };
   const removeContent = async (id) => {
